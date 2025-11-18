@@ -13,25 +13,55 @@ const ProjectDashboard: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([
     {
       id: '1',
-      name: 'WebApp-Frontend',
-      repository: 'git@github.com:example/webapp-frontend.git',
-      branch: 'main',
+      name: 'E-Commerce Platform',
+      repositories: [
+        {
+          name: 'frontend',
+          url: 'git@github.com:example/ecommerce-frontend.git',
+          branch: 'main',
+        },
+        {
+          name: 'backend',
+          url: 'git@github.com:example/ecommerce-backend.git',
+          branch: 'develop',
+        },
+      ],
       lastUpdated: new Date(Date.now() - 86400000).toISOString(), // 昨天
       createdAt: new Date(Date.now() - 86400000 * 7).toISOString(),
     },
     {
       id: '2',
       name: 'Data-API-Service',
-      repository: 'git@github.com:example/data-api.git',
-      branch: 'develop',
+      repositories: [
+        {
+          name: 'data-api',
+          url: 'git@github.com:example/data-api.git',
+          branch: 'develop',
+        },
+      ],
       lastUpdated: new Date(Date.now() - 86400000 * 3).toISOString(), // 3天前
       createdAt: new Date(Date.now() - 86400000 * 30).toISOString(),
     },
     {
       id: '3',
-      name: 'Marketing-Site',
-      repository: 'git@github.com:example/marketing-site.git',
-      branch: 'main',
+      name: 'Marketing Website',
+      repositories: [
+        {
+          name: 'marketing-web',
+          url: 'git@github.com:example/marketing-site.git',
+          branch: 'main',
+        },
+        {
+          name: 'cms',
+          url: 'git@github.com:example/marketing-cms.git',
+          branch: 'main',
+        },
+        {
+          name: 'analytics',
+          url: 'git@github.com:example/marketing-analytics.git',
+          branch: 'main',
+        },
+      ],
       lastUpdated: new Date(Date.now() - 86400000 * 14).toISOString(), // 2周前
       createdAt: new Date(Date.now() - 86400000 * 60).toISOString(),
     },
@@ -46,7 +76,11 @@ const ProjectDashboard: React.FC = () => {
     return projects.filter(
       (project) =>
         project.name.toLowerCase().includes(lowerSearch) ||
-        project.repository?.toLowerCase().includes(lowerSearch)
+        project.repositories.some(
+          (repo) =>
+            repo.name.toLowerCase().includes(lowerSearch) ||
+            repo.url.toLowerCase().includes(lowerSearch)
+        )
     );
   }, [projects, searchText]);
 
@@ -54,8 +88,7 @@ const ProjectDashboard: React.FC = () => {
     const newProject: Project = {
       id: Date.now().toString(),
       name: values.name,
-      repository: values.repository,
-      branch: values.branch || 'main',
+      repositories: values.repositories,
       lastUpdated: new Date().toISOString(),
       createdAt: new Date().toISOString(),
     };

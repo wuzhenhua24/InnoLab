@@ -1,6 +1,9 @@
 import React from 'react';
-import { Modal, Form, Input } from 'antd';
+import { Modal, Form, Input, Button, Space, Typography, Divider } from 'antd';
+import { PlusOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import type { CreateProjectInput } from '../types/project';
+
+const { Text } = Typography;
 
 interface NewProjectModalProps {
   open: boolean;
@@ -38,12 +41,13 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
       onCancel={handleCancel}
       okText="创建"
       cancelText="取消"
-      width={520}
+      width={640}
     >
       <Form
         form={form}
         layout="vertical"
         style={{ marginTop: '24px' }}
+        initialValues={{ repositories: [{}] }}
       >
         <Form.Item
           label="项目名称"
@@ -53,28 +57,92 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
             { max: 100, message: '项目名称不能超过100个字符' },
           ]}
         >
-          <Input placeholder="WebApp-Frontend" />
+          <Input placeholder="我的AI项目" size="large" />
         </Form.Item>
 
-        <Form.Item
-          label="Git 仓库地址 (可选)"
-          name="repository"
-          rules={[
-            {
-              pattern: /^(https?:\/\/|git@).+/,
-              message: '请输入有效的Git仓库地址',
-            },
-          ]}
-        >
-          <Input placeholder="https://github.com/your-org/webapp-frontend.git" />
-        </Form.Item>
+        <Divider orientation="left" style={{ marginTop: '32px', marginBottom: '24px' }}>
+          <Text type="secondary">Git 仓库配置</Text>
+        </Divider>
 
-        <Form.Item
-          label="分支名 (可选)"
-          name="branch"
-        >
-          <Input placeholder="main" />
-        </Form.Item>
+        <Form.List name="repositories">
+          {(fields, { add, remove }) => (
+            <>
+              {fields.map(({ key, name, ...restField }) => (
+                <Space
+                  key={key}
+                  style={{
+                    display: 'flex',
+                    marginBottom: 16,
+                    padding: '16px',
+                    background: '#fafafa',
+                    borderRadius: '8px',
+                    position: 'relative',
+                  }}
+                  align="start"
+                >
+                  <div style={{ flex: 1, width: '100%' }}>
+                    <Space direction="vertical" style={{ width: '100%' }} size="small">
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'name']}
+                        rules={[{ required: true, message: '请输入仓库名称' }]}
+                        style={{ marginBottom: '8px' }}
+                      >
+                        <Input placeholder="仓库名称（如：frontend、backend）" />
+                      </Form.Item>
+
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'url']}
+                        rules={[
+                          { required: true, message: '请输入仓库地址' },
+                          {
+                            pattern: /^(https?:\/\/|git@).+/,
+                            message: '请输入有效的Git仓库地址',
+                          },
+                        ]}
+                        style={{ marginBottom: '8px' }}
+                      >
+                        <Input placeholder="Git仓库地址（https://... 或 git@...）" />
+                      </Form.Item>
+
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'branch']}
+                        style={{ marginBottom: 0 }}
+                      >
+                        <Input placeholder="分支名（可选，默认为 main）" />
+                      </Form.Item>
+                    </Space>
+                  </div>
+
+                  {fields.length > 1 && (
+                    <MinusCircleOutlined
+                      style={{
+                        fontSize: '18px',
+                        color: '#ff4d4f',
+                        cursor: 'pointer',
+                        marginTop: '8px',
+                      }}
+                      onClick={() => remove(name)}
+                    />
+                  )}
+                </Space>
+              ))}
+
+              <Form.Item>
+                <Button
+                  type="dashed"
+                  onClick={() => add()}
+                  block
+                  icon={<PlusOutlined />}
+                >
+                  添加仓库
+                </Button>
+              </Form.Item>
+            </>
+          )}
+        </Form.List>
       </Form>
     </Modal>
   );
