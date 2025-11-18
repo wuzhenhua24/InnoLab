@@ -1,6 +1,6 @@
-# AI 工作台 - 前端项目
+# AI Workbench Web
 
-这是AI研发工作台的前端项目，使用 React + TypeScript + Vite 构建。
+AI研发工作台的Web前端应用，使用 React + TypeScript + Vite 构建。
 
 ## 技术栈
 
@@ -14,7 +14,7 @@
 ## 项目结构
 
 ```
-frontend/
+ai-workbench-web/
 ├── src/
 │   ├── components/      # 可复用组件
 │   │   ├── Layout.tsx           # 应用布局组件
