@@ -41,7 +41,7 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
       onCancel={handleCancel}
       okText="创建"
       cancelText="取消"
-      width={640}
+      width={720}
     >
       <Form
         form={form}
@@ -88,7 +88,10 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
                         rules={[{ required: true, message: '请输入仓库名称' }]}
                         style={{ marginBottom: '8px' }}
                       >
-                        <Input placeholder="仓库名称（如：frontend、backend）" />
+                        <Input
+                          placeholder="如：frontend、backend"
+                          size="large"
+                        />
                       </Form.Item>
 
                       <Form.Item
@@ -103,7 +106,10 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
                         ]}
                         style={{ marginBottom: '8px' }}
                       >
-                        <Input placeholder="Git仓库地址（https://... 或 git@...）" />
+                        <Input
+                          placeholder="https://github.com/your-org/repo.git"
+                          size="large"
+                        />
                       </Form.Item>
 
                       <Form.Item
@@ -111,7 +117,10 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
                         name={[name, 'branch']}
                         style={{ marginBottom: 0 }}
                       >
-                        <Input placeholder="分支名（可选，默认为 main）" />
+                        <Input
+                          placeholder="如：main、develop"
+                          size="large"
+                        />
                       </Form.Item>
                     </Space>
                   </div>
