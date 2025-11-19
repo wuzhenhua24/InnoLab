@@ -265,52 +265,40 @@ const PipelineView: React.FC = () => {
         >
           {pipeline.stages.map((stage, index) => (
             <React.Fragment key={stage.id}>
-              {/* 节点容器 */}
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                {/* 节点 */}
-                <div
-                  style={{
-                    width: '60px',
-                    height: '60px',
-                    borderRadius: '50%',
-                    background:
-                      stage.status === StageStatus.COMPLETED
-                        ? '#52c41a'
-                        : stage.status === StageStatus.RUNNING
-                        ? '#1890ff'
-                        : stage.status === StageStatus.WAITING_REVIEW
-                        ? '#faad14'
-                        : stage.status === StageStatus.FAILED
-                        ? '#ff4d4f'
-                        : '#d9d9d9',
-                    color: '#fff',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    fontSize: '16px',
-                    fontWeight: 'bold',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                  }}
-                >
-                  <div>{stage.order === 0 ? 'S' : stage.order}</div>
-                </div>
-                {/* 节点名称 */}
-                <div
-                  style={{
-                    fontSize: '12px',
-                    color: '#595959',
-                    textAlign: 'center',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {stage.name}
-                </div>
+              {/* 节点 */}
+              <div
+                style={{
+                  width: '70px',
+                  height: '70px',
+                  borderRadius: '50%',
+                  background:
+                    stage.status === StageStatus.COMPLETED
+                      ? '#52c41a'
+                      : stage.status === StageStatus.RUNNING
+                      ? '#1890ff'
+                      : stage.status === StageStatus.WAITING_REVIEW
+                      ? '#faad14'
+                      : stage.status === StageStatus.FAILED
+                      ? '#ff4d4f'
+                      : '#d9d9d9',
+                  color: '#fff',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  fontSize: '13px',
+                  fontWeight: 'bold',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                  writingMode: 'vertical-rl',
+                  letterSpacing: '2px',
+                }}
+              >
+                {stage.name}
               </div>
 
               {/* 连接线 */}
               {index < pipeline.stages.length - 1 && (
-                <ArrowRightOutlined style={{ fontSize: '20px', color: '#bfbfbf', marginTop: '-20px' }} />
+                <ArrowRightOutlined style={{ fontSize: '20px', color: '#bfbfbf' }} />
               )}
             </React.Fragment>
           ))}
