@@ -20,6 +20,7 @@ export interface DeploymentLog {
 
 interface DeploymentStageCardProps {
   stageName: string;
+  stageOrder: number;
   environment: string;
   status: DeploymentStatus;
   logs: DeploymentLog[];
@@ -30,6 +31,7 @@ interface DeploymentStageCardProps {
 
 const DeploymentStageCard: React.FC<DeploymentStageCardProps> = ({
   stageName,
+  stageOrder,
   environment,
   status,
   logs,
@@ -110,7 +112,7 @@ const DeploymentStageCard: React.FC<DeploymentStageCardProps> = ({
       title={
         <Space>
           <span style={{ color: statusConfig.color }}>{statusConfig.icon}</span>
-          <Text strong>{stageName}</Text>
+          <Text strong>[{stageOrder}] {stageName}</Text>
           <Tag color={statusConfig.color}>
             {statusConfig.emoji} {statusConfig.text}
           </Tag>

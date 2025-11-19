@@ -897,6 +897,7 @@ const PipelineView: React.FC = () => {
             <DeploymentStageCard
               key={stage.id}
               stageName={stage.name}
+              stageOrder={stage.order}
               environment={deploymentEnvironment}
               status={
                 stage.status === StageStatus.PENDING
