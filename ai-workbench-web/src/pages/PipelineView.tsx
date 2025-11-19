@@ -1,10 +1,11 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Typography, Button, Space, Divider, Modal, message } from 'antd';
 import { ThunderboltOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import StageCard from '../components/StageCard';
 import type { Pipeline, LogEntry, ExecutionMetrics, StageArtifact } from '../types/pipeline';
 import { StageStatus, StageType, LogLevel, ArtifactType } from '../types/pipeline';
+import { loadArtifactContent } from '../utils/artifactLoader';
 
 const { Title, Text } = Typography;
 
@@ -33,7 +34,7 @@ const PipelineView: React.FC = () => {
             name: 'PROJECT_ANALYSIS.md',
             url: '/artifacts/project-analysis.md',
             type: ArtifactType.MARKDOWN,
-            content: '# 项目分析报告\n\n## 1. 代码库结构\n\n本项目采用前后端分离的架构...\n\n## 2. 技术栈\n\n- 前端：React + TypeScript\n- 后端：Node.js + Express\n\n## 3. 主要模块\n\n- 用户管理\n- 订单系统\n- 支付集成',
+            content: '', // 将在useEffect中加载
             createdAt: new Date(Date.now() - 3600000).toISOString(),
           },
         ],
@@ -53,7 +54,7 @@ const PipelineView: React.FC = () => {
             name: '需求文档.md',
             url: '/artifacts/requirement-doc.md',
             type: ArtifactType.MARKDOWN,
-            content: '# 需求文档\n\n## 功能需求\n\n1. 用户注册和登录\n2. 商品浏览和搜索\n3. 购物车管理\n4. 订单处理',
+            content: '', // 将在useEffect中加载
             createdAt: new Date(Date.now() - 1800000).toISOString(),
           },
         ],
@@ -115,6 +116,36 @@ const PipelineView: React.FC = () => {
       },
     ],
   });
+
+  // 加载artifact文件内容
+  useEffect(() => {
+    const loadArtifactContents = async () => {
+      const updatedStages = await Promise.all(
+        pipeline.stages.map(async (stage) => {
+          if (stage.artifacts.length > 0) {
+            const updatedArtifacts = await Promise.all(
+              stage.artifacts.map(async (artifact) => {
+                if (artifact.type === ArtifactType.MARKDOWN && !artifact.content) {
+                  const content = await loadArtifactContent(artifact.url);
+                  return { ...artifact, content };
+                }
+                return artifact;
+              })
+            );
+            return { ...stage, artifacts: updatedArtifacts };
+          }
+          return stage;
+        })
+      );
+
+      setPipeline((prev) => ({
+        ...prev,
+        stages: updatedStages,
+      }));
+    };
+
+    loadArtifactContents();
+  }, []); // 只在组件挂载时执行一次
 
   // Mock: 生成模拟日志
   const generateMockLogs = (stageName: string): LogEntry[] => {
@@ -265,12 +296,33 @@ const PipelineView: React.FC = () => {
         stages: prev.stages.map((s) => {
           if (s.id !== stageId) return s;
 
-          // 根据阶段类型决定产出物类型
+          // 根据阶段类型决定产出物类型和文件名
           const isCodeStage = s.type === StageType.CODE_DEV || s.type === StageType.TEST_SCRIPT;
           const artifactType = isCodeStage ? ArtifactType.CODE : ArtifactType.MARKDOWN;
-          const mockContent = isCodeStage
-            ? '// 代码文件内容\nexport function example() {\n  return "Hello World";\n}'
-            : `# ${s.name}\n\n这是AI生成的${s.name}文档。\n\n## 概述\n\n本文档描述了${s.name}的相关内容...\n\n## 详细说明\n\n待补充...`;
+          const fileExtension = isCodeStage ? 'ts' : 'md';
+          const fileName = `${s.type}.${fileExtension}`;
+          const artifactUrl = `/artifacts/${fileName}`;
+
+          // 异步加载文件内容
+          const loadContentAsync = async () => {
+            const content = await loadArtifactContent(artifactUrl);
+            setPipeline((prev) => ({
+              ...prev,
+              stages: prev.stages.map((stage) =>
+                stage.id === s.id
+                  ? {
+                      ...stage,
+                      artifacts: stage.artifacts.map((art) =>
+                        art.url === artifactUrl ? { ...art, content } : art
+                      ),
+                    }
+                  : stage
+              ),
+            }));
+          };
+
+          // 立即开始加载内容
+          loadContentAsync();
 
           return {
             ...s,
@@ -278,11 +330,11 @@ const PipelineView: React.FC = () => {
             metrics: generateMockMetrics(),
             artifacts: [
               {
-                name: `${s.name}_产出.${isCodeStage ? 'ts' : 'md'}`,
-                url: `/artifacts/${s.type}.${isCodeStage ? 'ts' : 'md'}`,
+                name: `${s.name}_产出.${fileExtension}`,
+                url: artifactUrl,
                 type: artifactType,
-                content: mockContent,
-                filePath: isCodeStage ? `/src/generated/${s.type}.ts` : undefined,
+                content: '', // 初始为空，将异步加载
+                filePath: isCodeStage ? `/src/generated/${fileName}` : undefined,
                 createdAt: new Date().toISOString(),
               },
             ],
@@ -362,9 +414,30 @@ const PipelineView: React.FC = () => {
 
                   const isCodeStage = s.type === StageType.CODE_DEV || s.type === StageType.TEST_SCRIPT;
                   const artifactType = isCodeStage ? ArtifactType.CODE : ArtifactType.MARKDOWN;
-                  const mockContent = isCodeStage
-                    ? '// 代码文件内容\nexport function example() {\n  return "Hello World";\n}'
-                    : `# ${s.name}\n\n这是AI生成的${s.name}文档。\n\n## 概述\n\n本文档描述了${s.name}的相关内容...`;
+                  const fileExtension = isCodeStage ? 'ts' : 'md';
+                  const fileName = `${s.type}.${fileExtension}`;
+                  const artifactUrl = `/artifacts/${fileName}`;
+
+                  // 异步加载文件内容
+                  const loadContentAsync = async () => {
+                    const content = await loadArtifactContent(artifactUrl);
+                    setPipeline((prev) => ({
+                      ...prev,
+                      stages: prev.stages.map((stage) =>
+                        stage.id === s.id
+                          ? {
+                              ...stage,
+                              artifacts: stage.artifacts.map((art) =>
+                                art.url === artifactUrl ? { ...art, content } : art
+                              ),
+                            }
+                          : stage
+                      ),
+                    }));
+                  };
+
+                  // 立即开始加载内容
+                  loadContentAsync();
 
                   return {
                     ...s,
@@ -373,11 +446,11 @@ const PipelineView: React.FC = () => {
                     metrics: generateMockMetrics(),
                     artifacts: [
                       {
-                        name: `${s.name}_产出.${isCodeStage ? 'ts' : 'md'}`,
-                        url: `/artifacts/${s.type}.${isCodeStage ? 'ts' : 'md'}`,
+                        name: `${s.name}_产出.${fileExtension}`,
+                        url: artifactUrl,
                         type: artifactType,
-                        content: mockContent,
-                        filePath: isCodeStage ? `/src/generated/${s.type}.ts` : undefined,
+                        content: '', // 初始为空，将异步加载
+                        filePath: isCodeStage ? `/src/generated/${fileName}` : undefined,
                         createdAt: new Date().toISOString(),
                       },
                     ],
