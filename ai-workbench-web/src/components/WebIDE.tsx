@@ -5,8 +5,10 @@ import {
   FolderOutlined,
   SaveOutlined,
   CloseOutlined,
+  GitlabOutlined,
 } from '@ant-design/icons';
 import Editor from '@monaco-editor/react';
+import GitCommitModal from './GitCommitModal';
 import type { IDEFile } from '../types/pipeline';
 
 const { Text } = Typography;
@@ -15,7 +17,9 @@ interface WebIDEProps {
   visible: boolean;
   title: string;
   files: IDEFile[];
+  projectName: string;
   onSave: (files: IDEFile[]) => void;
+  onCommit?: (message: string) => Promise<void>;
   onClose: () => void;
 }
 
@@ -28,16 +32,19 @@ interface TreeNode {
   fileId?: string;
 }
 
-const WebIDE: React.FC<WebIDEProps> = ({ visible, title, files, onSave, onClose }) => {
+const WebIDE: React.FC<WebIDEProps> = ({ visible, title, files, projectName, onSave, onCommit, onClose }) => {
   const [currentFile, setCurrentFile] = useState<IDEFile | null>(null);
   const [editedFiles, setEditedFiles] = useState<Map<string, IDEFile>>(new Map());
+  const [originalFiles, setOriginalFiles] = useState<IDEFile[]>([]);
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
+  const [gitModalVisible, setGitModalVisible] = useState(false);
 
-  // 初始化时选择第一个文件
+  // 初始化时选择第一个文件并保存原始状态
   useEffect(() => {
     if (visible && files.length > 0 && !currentFile) {
       setCurrentFile(files[0]);
       setEditedFiles(new Map(files.map(f => [f.id, { ...f }])));
+      setOriginalFiles(files.map(f => ({ ...f }))); // 保存原始文件用于变更检测
     }
   }, [visible, files, currentFile]);
 
@@ -194,6 +201,12 @@ const WebIDE: React.FC<WebIDEProps> = ({ visible, title, files, onSave, onClose 
             关闭
           </Button>
           <Button
+            icon={<GitlabOutlined />}
+            onClick={() => setGitModalVisible(true)}
+          >
+            源代码管理
+          </Button>
+          <Button
             type="primary"
             icon={<SaveOutlined />}
             onClick={handleSave}
@@ -293,6 +306,23 @@ const WebIDE: React.FC<WebIDEProps> = ({ visible, title, files, onSave, onClose 
           </div>
         </div>
       </div>
+
+      {/* Git提交模态框 */}
+      <GitCommitModal
+        visible={gitModalVisible}
+        files={Array.from(editedFiles.values())}
+        originalFiles={originalFiles}
+        projectName={projectName}
+        onCommit={async (commitMsg) => {
+          if (onCommit) {
+            await onCommit(commitMsg);
+          } else {
+            // 如果没有提供onCommit，显示提示信息
+            message.info('Git功能需要后端支持');
+          }
+        }}
+        onClose={() => setGitModalVisible(false)}
+      />
     </Modal>
   );
 };

@@ -601,6 +601,31 @@ const PipelineView: React.FC = () => {
     setCurrentEditingStageId(null);
   }, []);
 
+  // Git提交和推送
+  const handleGitCommit = useCallback(async (commitMessage: string) => {
+    // 这里是Git操作的Mock实现
+    // 实际项目中应该调用后端API执行真实的Git命令
+    return new Promise<void>((resolve, reject) => {
+      // 模拟Git操作延迟
+      setTimeout(() => {
+        try {
+          console.log('执行Git操作:');
+          console.log('1. git add .');
+          console.log('2. git commit -m "' + commitMessage + '"');
+          console.log('3. git push');
+
+          // 模拟成功
+          resolve();
+
+          // 如果需要模拟失败，可以使用：
+          // reject('推送被拒绝，请先拉取远程更改');
+        } catch (error) {
+          reject(error);
+        }
+      }, 2000); // 模拟2秒的网络延迟
+    });
+  }, []);
+
   // 渲染流水线可视化
   const renderPipelineVisualization = () => {
     return (
@@ -724,7 +749,9 @@ const PipelineView: React.FC = () => {
         visible={ideVisible}
         title={ideTitle}
         files={ideFiles}
+        projectName={pipeline.projectName}
         onSave={handleSaveIDEFiles}
+        onCommit={handleGitCommit}
         onClose={handleCloseIDE}
       />
     </div>
