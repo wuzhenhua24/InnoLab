@@ -5,7 +5,7 @@ import { RocketOutlined } from '@ant-design/icons';
 const { TextArea } = Input;
 
 export interface DeployConfig {
-  environment: 'dev' | 'staging' | 'production';
+  environment: 'test' | 'staging' | 'production';
   mode: 'auto' | 'manual';
   commitMessage: string;
 }
@@ -24,19 +24,19 @@ const DeployConfigModal: React.FC<DeployConfigModalProps> = ({
   onCancel,
 }) => {
   const [form] = Form.useForm();
-  const [environment, setEnvironment] = useState<DeployConfig['environment']>('dev');
+  const [environment, setEnvironment] = useState<DeployConfig['environment']>('test');
 
   // 重置表单
   useEffect(() => {
     if (visible) {
       // 生成默认commit message
-      const defaultMessage = `feat: [AI] Deploy ${projectName} to development environment`;
+      const defaultMessage = `feat: [AI] Deploy ${projectName} to test environment`;
       form.setFieldsValue({
-        environment: 'dev',
+        environment: 'test',
         mode: 'auto',
         commitMessage: defaultMessage,
       });
-      setEnvironment('dev');
+      setEnvironment('test');
     }
   }, [visible, projectName, form]);
 
@@ -44,7 +44,7 @@ const DeployConfigModal: React.FC<DeployConfigModalProps> = ({
   const handleEnvironmentChange = (value: DeployConfig['environment']) => {
     setEnvironment(value);
     const envMap = {
-      dev: 'development',
+      test: 'test',
       staging: 'staging',
       production: 'production',
     };
@@ -77,7 +77,7 @@ const DeployConfigModal: React.FC<DeployConfigModalProps> = ({
         <Space>
           <Button onClick={onCancel}>取消</Button>
           <Button type="primary" icon={<RocketOutlined />} onClick={handleOk}>
-            部署到 {environment === 'dev' ? 'Dev' : environment === 'staging' ? 'Staging' : 'Production'}
+            部署到 {environment === 'test' ? 'Test' : environment === 'staging' ? 'Staging' : 'Production'}
           </Button>
         </Space>
       }
@@ -86,9 +86,9 @@ const DeployConfigModal: React.FC<DeployConfigModalProps> = ({
         form={form}
         layout="vertical"
         initialValues={{
-          environment: 'dev',
+          environment: 'test',
           mode: 'auto',
-          commitMessage: `feat: [AI] Deploy ${projectName} to development environment`,
+          commitMessage: `feat: [AI] Deploy ${projectName} to test environment`,
         }}
       >
         {/* 目标环境 */}
@@ -102,9 +102,9 @@ const DeployConfigModal: React.FC<DeployConfigModalProps> = ({
             onChange={handleEnvironmentChange}
             options={[
               {
-                value: 'dev',
-                label: '🔧 Dev/测试环境 (Development)',
-                description: '用于开发和功能测试',
+                value: 'test',
+                label: '🔧 Test/功能测试 (Test)',
+                description: '用于功能测试',
               },
               {
                 value: 'staging',

@@ -116,9 +116,6 @@ const DeploymentStageCard: React.FC<DeploymentStageCardProps> = ({
           <Tag color={statusConfig.color}>
             {statusConfig.emoji} {statusConfig.text}
           </Tag>
-          {environment && (
-            <Tag color="blue">环境: {environment}</Tag>
-          )}
         </Space>
       }
       extra={

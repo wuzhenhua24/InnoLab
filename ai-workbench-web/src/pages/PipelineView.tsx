@@ -137,7 +137,7 @@ const PipelineView: React.FC = () => {
 
   // 部署相关状态
   const [deployConfigVisible, setDeployConfigVisible] = useState(false);
-  const [deploymentEnvironment, setDeploymentEnvironment] = useState<'dev' | 'staging' | 'production'>('dev');
+  const [deploymentEnvironment, setDeploymentEnvironment] = useState<'test' | 'staging' | 'production'>('test');
   const [deploymentLogs, setDeploymentLogs] = useState<Array<{ timestamp: string; message: string; level: 'info' | 'success' | 'error' | 'warning' }>>([]);
   const [deploymentProgress, setDeploymentProgress] = useState(0);
 
@@ -650,7 +650,7 @@ const PipelineView: React.FC = () => {
   }, []);
 
   // 处理部署配置确认
-  const handleDeployConfirm = useCallback(async (config: { environment: 'dev' | 'staging' | 'production'; mode: 'auto' | 'manual'; commitMessage: string }) => {
+  const handleDeployConfirm = useCallback(async (config: { environment: 'test' | 'staging' | 'production'; mode: 'auto' | 'manual'; commitMessage: string }) => {
     setDeployConfigVisible(false);
     setDeploymentEnvironment(config.environment);
     setDeploymentLogs([]);
@@ -744,7 +744,7 @@ const PipelineView: React.FC = () => {
 
       // 部署成功
       const envDomain = {
-        dev: 'dev.example.com',
+        test: 'test.example.com',
         staging: 'staging.example.com',
         production: 'www.example.com',
       };
