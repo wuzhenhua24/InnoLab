@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Space, Tag, Typography, Progress, Alert } from 'antd';
 import {
-  RocketOutlined,
+  ClockCircleOutlined,
   LoadingOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
   LinkOutlined,
+  RocketOutlined,
 } from '@ant-design/icons';
 
 const { Text, Paragraph } = Typography;
@@ -53,38 +54,33 @@ const DeploymentStageCard: React.FC<DeploymentStageCardProps> = ({
     switch (status) {
       case 'pending':
         return {
-          icon: <RocketOutlined />,
-          color: '#8c8c8c',
+          icon: <ClockCircleOutlined />,
+          color: 'default',
           text: '待处理',
-          emoji: '🕒',
         };
       case 'deploying':
         return {
           icon: <LoadingOutlined spin />,
-          color: '#1890ff',
+          color: 'processing',
           text: '部署中',
-          emoji: '⚙️',
         };
       case 'success':
         return {
           icon: <CheckCircleOutlined />,
-          color: '#52c41a',
+          color: 'success',
           text: '已完成',
-          emoji: '✔️',
         };
       case 'failed':
         return {
           icon: <CloseCircleOutlined />,
-          color: '#ff4d4f',
+          color: 'error',
           text: '失败',
-          emoji: '❌',
         };
       default:
         return {
-          icon: <RocketOutlined />,
-          color: '#8c8c8c',
+          icon: <ClockCircleOutlined />,
+          color: 'default',
           text: '未知',
-          emoji: '❓',
         };
     }
   };
@@ -112,8 +108,8 @@ const DeploymentStageCard: React.FC<DeploymentStageCardProps> = ({
       title={
         <Space>
           <Text strong>[{stageOrder}] {stageName}</Text>
-          <Tag color={statusConfig.color}>
-            {statusConfig.emoji} {statusConfig.text}
+          <Tag icon={statusConfig.icon} color={statusConfig.color}>
+            {statusConfig.text}
           </Tag>
         </Space>
       }
