@@ -3,8 +3,8 @@ import { useParams } from 'react-router-dom';
 import { Typography, Button, Space, Divider, Modal, message } from 'antd';
 import { ThunderboltOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import StageCard from '../components/StageCard';
-import type { Pipeline, LogEntry, ExecutionMetrics } from '../types/pipeline';
-import { StageStatus, StageType, LogLevel } from '../types/pipeline';
+import type { Pipeline, LogEntry, ExecutionMetrics, StageArtifact } from '../types/pipeline';
+import { StageStatus, StageType, LogLevel, ArtifactType } from '../types/pipeline';
 
 const { Title, Text } = Typography;
 
@@ -32,6 +32,8 @@ const PipelineView: React.FC = () => {
           {
             name: 'PROJECT_ANALYSIS.md',
             url: '/artifacts/project-analysis.md',
+            type: ArtifactType.MARKDOWN,
+            content: '# 项目分析报告\n\n## 1. 代码库结构\n\n本项目采用前后端分离的架构...\n\n## 2. 技术栈\n\n- 前端：React + TypeScript\n- 后端：Node.js + Express\n\n## 3. 主要模块\n\n- 用户管理\n- 订单系统\n- 支付集成',
             createdAt: new Date(Date.now() - 3600000).toISOString(),
           },
         ],
@@ -50,6 +52,8 @@ const PipelineView: React.FC = () => {
           {
             name: '需求文档.md',
             url: '/artifacts/requirement-doc.md',
+            type: ArtifactType.MARKDOWN,
+            content: '# 需求文档\n\n## 功能需求\n\n1. 用户注册和登录\n2. 商品浏览和搜索\n3. 购物车管理\n4. 订单处理',
             createdAt: new Date(Date.now() - 1800000).toISOString(),
           },
         ],
@@ -258,22 +262,32 @@ const PipelineView: React.FC = () => {
       // 日志推送完成后，更新状态为等待审核，并添加执行指标
       setPipeline((prev) => ({
         ...prev,
-        stages: prev.stages.map((s) =>
-          s.id === stageId
-            ? {
-                ...s,
-                status: StageStatus.WAITING_REVIEW,
-                metrics: generateMockMetrics(),
-                artifacts: [
-                  {
-                    name: `${s.name}_产出.md`,
-                    url: `/artifacts/${s.type}.md`,
-                    createdAt: new Date().toISOString(),
-                  },
-                ],
-              }
-            : s
-        ),
+        stages: prev.stages.map((s) => {
+          if (s.id !== stageId) return s;
+
+          // 根据阶段类型决定产出物类型
+          const isCodeStage = s.type === StageType.CODE_DEV || s.type === StageType.TEST_SCRIPT;
+          const artifactType = isCodeStage ? ArtifactType.CODE : ArtifactType.MARKDOWN;
+          const mockContent = isCodeStage
+            ? '// 代码文件内容\nexport function example() {\n  return "Hello World";\n}'
+            : `# ${s.name}\n\n这是AI生成的${s.name}文档。\n\n## 概述\n\n本文档描述了${s.name}的相关内容...\n\n## 详细说明\n\n待补充...`;
+
+          return {
+            ...s,
+            status: StageStatus.WAITING_REVIEW,
+            metrics: generateMockMetrics(),
+            artifacts: [
+              {
+                name: `${s.name}_产出.${isCodeStage ? 'ts' : 'md'}`,
+                url: `/artifacts/${s.type}.${isCodeStage ? 'ts' : 'md'}`,
+                type: artifactType,
+                content: mockContent,
+                filePath: isCodeStage ? `/src/generated/${s.type}.ts` : undefined,
+                createdAt: new Date().toISOString(),
+              },
+            ],
+          };
+        }),
       }));
       message.success(`${stage.name} 执行完成，等待审核`);
     });
@@ -343,23 +357,32 @@ const PipelineView: React.FC = () => {
               // 日志推送完成后直接标记为完成（一键执行无需审核），并添加执行指标
               setPipeline((prev) => ({
                 ...prev,
-                stages: prev.stages.map((s) =>
-                  s.id === stage.id
-                    ? {
-                        ...s,
-                        status: StageStatus.COMPLETED,
-                        completedAt: new Date().toISOString(),
-                        metrics: generateMockMetrics(),
-                        artifacts: [
-                          {
-                            name: `${s.name}_产出.md`,
-                            url: `/artifacts/${s.type}.md`,
-                            createdAt: new Date().toISOString(),
-                          },
-                        ],
-                      }
-                    : s
-                ),
+                stages: prev.stages.map((s) => {
+                  if (s.id !== stage.id) return s;
+
+                  const isCodeStage = s.type === StageType.CODE_DEV || s.type === StageType.TEST_SCRIPT;
+                  const artifactType = isCodeStage ? ArtifactType.CODE : ArtifactType.MARKDOWN;
+                  const mockContent = isCodeStage
+                    ? '// 代码文件内容\nexport function example() {\n  return "Hello World";\n}'
+                    : `# ${s.name}\n\n这是AI生成的${s.name}文档。\n\n## 概述\n\n本文档描述了${s.name}的相关内容...`;
+
+                  return {
+                    ...s,
+                    status: StageStatus.COMPLETED,
+                    completedAt: new Date().toISOString(),
+                    metrics: generateMockMetrics(),
+                    artifacts: [
+                      {
+                        name: `${s.name}_产出.${isCodeStage ? 'ts' : 'md'}`,
+                        url: `/artifacts/${s.type}.${isCodeStage ? 'ts' : 'md'}`,
+                        type: artifactType,
+                        content: mockContent,
+                        filePath: isCodeStage ? `/src/generated/${s.type}.ts` : undefined,
+                        createdAt: new Date().toISOString(),
+                      },
+                    ],
+                  };
+                }),
               }));
 
               // 最后一个阶段完成时结束
@@ -382,6 +405,40 @@ const PipelineView: React.FC = () => {
     message.info(`查看产出物: ${url}`);
     // TODO: 实现产出物查看功能
   }, []);
+
+  // 编辑产出物
+  const handleEditArtifact = useCallback((stageId: string, artifact: StageArtifact, newContent: string) => {
+    setPipeline((prev) => ({
+      ...prev,
+      stages: prev.stages.map((stage) => {
+        if (stage.id !== stageId) return stage;
+
+        return {
+          ...stage,
+          artifacts: stage.artifacts.map((art) =>
+            art.url === artifact.url
+              ? { ...art, content: newContent }
+              : art
+          ),
+        };
+      }),
+    }));
+    message.success('产出物已保存');
+  }, []);
+
+  // 在IDE中打开代码
+  const handleOpenInIDE = useCallback((stageId: string) => {
+    const stage = pipeline.stages.find((s) => s.id === stageId);
+    if (!stage) return;
+
+    const codeArtifacts = stage.artifacts.filter((a) => a.type === ArtifactType.CODE);
+    if (codeArtifacts.length > 0) {
+      const fileList = codeArtifacts.map((a) => a.filePath || a.name).join(', ');
+      message.info(`即将在IDE中打开: ${fileList}`);
+      // TODO: 实现实际的IDE集成功能
+      // 这里应该触发打开Web IDE并高亮相关文件
+    }
+  }, [pipeline.stages]);
 
   // 渲染流水线可视化
   const renderPipelineVisualization = () => {
@@ -496,6 +553,8 @@ const PipelineView: React.FC = () => {
             onRun={handleRunStage}
             onApprove={handleApproveStage}
             onViewArtifact={handleViewArtifact}
+            onEditArtifact={handleEditArtifact}
+            onOpenInIDE={handleOpenInIDE}
           />
         ))}
       </div>

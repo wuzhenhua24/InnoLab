@@ -32,11 +32,24 @@ export const StageType = {
 export type StageType = typeof StageType[keyof typeof StageType];
 
 /**
+ * 产出物类型
+ */
+export const ArtifactType = {
+  MARKDOWN: 'markdown',  // Markdown文档（PRD、架构设计等）
+  CODE: 'code',          // 代码文件
+} as const;
+
+export type ArtifactType = typeof ArtifactType[keyof typeof ArtifactType];
+
+/**
  * 阶段产出物
  */
 export interface StageArtifact {
   name: string;
   url: string;
+  type: ArtifactType;     // 产出物类型
+  content?: string;       // 产出物内容（用于编辑）
+  filePath?: string;      // 文件路径（用于代码类型）
   createdAt: string;
 }
 
