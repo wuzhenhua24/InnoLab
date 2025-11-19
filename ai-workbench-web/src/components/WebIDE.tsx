@@ -6,9 +6,11 @@ import {
   SaveOutlined,
   CloseOutlined,
   GitlabOutlined,
+  DownloadOutlined,
 } from '@ant-design/icons';
 import Editor from '@monaco-editor/react';
 import GitCommitModal from './GitCommitModal';
+import { exportFilesToZip } from '../utils/fileExporter';
 import type { IDEFile } from '../types/pipeline';
 
 const { Text } = Typography;
@@ -38,6 +40,7 @@ const WebIDE: React.FC<WebIDEProps> = ({ visible, title, files, projectName, onS
   const [originalFiles, setOriginalFiles] = useState<IDEFile[]>([]);
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
   const [gitModalVisible, setGitModalVisible] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   // 初始化时选择第一个文件并保存原始状态
   useEffect(() => {
@@ -176,6 +179,31 @@ const WebIDE: React.FC<WebIDEProps> = ({ visible, title, files, projectName, onS
     }
   };
 
+  // 导出文件到本地
+  const handleExport = async () => {
+    if (files.length === 0) {
+      message.warning('没有可导出的文件');
+      return;
+    }
+
+    setIsExporting(true);
+
+    try {
+      // 使用当前编辑状态的文件（包括未保存的修改）
+      const filesToExport = Array.from(editedFiles.values()).length > 0
+        ? Array.from(editedFiles.values())
+        : files;
+
+      await exportFilesToZip(filesToExport, projectName);
+      message.success(`成功导出 ${filesToExport.length} 个文件`);
+    } catch (error) {
+      message.error('导出失败，请重试');
+      console.error('Export error:', error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   // 获取修改文件的数量
   const getModifiedCount = () => {
     return Array.from(editedFiles.values()).filter(f => f.isModified).length;
@@ -205,6 +233,14 @@ const WebIDE: React.FC<WebIDEProps> = ({ visible, title, files, projectName, onS
             onClick={() => setGitModalVisible(true)}
           >
             源代码管理
+          </Button>
+          <Button
+            icon={<DownloadOutlined />}
+            onClick={handleExport}
+            loading={isExporting}
+            disabled={isExporting}
+          >
+            导出代码
           </Button>
           <Button
             type="primary"
