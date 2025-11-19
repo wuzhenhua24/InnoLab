@@ -50,7 +50,20 @@ export interface StageArtifact {
   type: ArtifactType;     // 产出物类型
   content?: string;       // 产出物内容（用于编辑）
   filePath?: string;      // 文件路径（用于代码类型）
+  language?: string;      // 代码语言（typescript, javascript, python等）
   createdAt: string;
+}
+
+/**
+ * IDE文件结构
+ */
+export interface IDEFile {
+  id: string;
+  name: string;
+  path: string;
+  content: string;
+  language: string;
+  isModified: boolean;
 }
 
 /**

@@ -3,7 +3,8 @@ import { useParams } from 'react-router-dom';
 import { Typography, Button, Space, Divider, Modal, message } from 'antd';
 import { ThunderboltOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import StageCard from '../components/StageCard';
-import type { Pipeline, LogEntry, ExecutionMetrics, StageArtifact } from '../types/pipeline';
+import WebIDE from '../components/WebIDE';
+import type { Pipeline, LogEntry, ExecutionMetrics, StageArtifact, IDEFile } from '../types/pipeline';
 import { StageStatus, StageType, LogLevel, ArtifactType } from '../types/pipeline';
 import { loadArtifactContent } from '../utils/artifactLoader';
 
@@ -116,6 +117,12 @@ const PipelineView: React.FC = () => {
       },
     ],
   });
+
+  // IDE相关状态
+  const [ideVisible, setIdeVisible] = useState(false);
+  const [ideFiles, setIdeFiles] = useState<IDEFile[]>([]);
+  const [ideTitle, setIdeTitle] = useState('');
+  const [currentEditingStageId, setCurrentEditingStageId] = useState<string | null>(null);
 
   // 加载artifact文件内容
   useEffect(() => {
@@ -335,6 +342,7 @@ const PipelineView: React.FC = () => {
                 type: artifactType,
                 content: '', // 初始为空，将异步加载
                 filePath: isCodeStage ? `/src/generated/${fileName}` : undefined,
+                language: isCodeStage ? 'typescript' : undefined,
                 createdAt: new Date().toISOString(),
               },
             ],
@@ -451,6 +459,7 @@ const PipelineView: React.FC = () => {
                         type: artifactType,
                         content: '', // 初始为空，将异步加载
                         filePath: isCodeStage ? `/src/generated/${fileName}` : undefined,
+                        language: isCodeStage ? 'typescript' : undefined,
                         createdAt: new Date().toISOString(),
                       },
                     ],
@@ -494,18 +503,103 @@ const PipelineView: React.FC = () => {
   }, []);
 
   // 在IDE中打开代码
-  const handleOpenInIDE = useCallback((stageId: string) => {
+  const handleOpenInIDE = useCallback(async (stageId: string) => {
     const stage = pipeline.stages.find((s) => s.id === stageId);
     if (!stage) return;
 
     const codeArtifacts = stage.artifacts.filter((a) => a.type === ArtifactType.CODE);
-    if (codeArtifacts.length > 0) {
-      const fileList = codeArtifacts.map((a) => a.filePath || a.name).join(', ');
-      message.info(`即将在IDE中打开: ${fileList}`);
-      // TODO: 实现实际的IDE集成功能
-      // 这里应该触发打开Web IDE并高亮相关文件
+    if (codeArtifacts.length === 0) {
+      message.warning('该阶段没有代码产出物');
+      return;
     }
+
+    // 将artifacts转换为IDE文件格式
+    const files: IDEFile[] = await Promise.all(
+      codeArtifacts.map(async (artifact, index) => {
+        // 如果没有内容，尝试加载
+        let content = artifact.content || '';
+        if (!content && artifact.url) {
+          content = await loadArtifactContent(artifact.url);
+        }
+
+        // 从文件扩展名推断语言
+        const getLanguage = (fileName: string): string => {
+          const ext = fileName.split('.').pop()?.toLowerCase();
+          const languageMap: Record<string, string> = {
+            ts: 'typescript',
+            tsx: 'typescript',
+            js: 'javascript',
+            jsx: 'javascript',
+            py: 'python',
+            java: 'java',
+            go: 'go',
+            rs: 'rust',
+            cpp: 'cpp',
+            c: 'c',
+            cs: 'csharp',
+            json: 'json',
+            md: 'markdown',
+          };
+          return languageMap[ext || ''] || 'plaintext';
+        };
+
+        return {
+          id: `${stageId}-file-${index}`,
+          name: artifact.name,
+          path: artifact.filePath || `/generated/${artifact.name}`,
+          content,
+          language: artifact.language || getLanguage(artifact.name),
+          isModified: false,
+        };
+      })
+    );
+
+    setIdeFiles(files);
+    setIdeTitle(`${stage.name} - 代码编辑器`);
+    setCurrentEditingStageId(stageId);
+    setIdeVisible(true);
   }, [pipeline.stages]);
+
+  // 保存IDE中的文件修改
+  const handleSaveIDEFiles = useCallback((updatedFiles: IDEFile[]) => {
+    if (!currentEditingStageId) return;
+
+    setPipeline((prev) => ({
+      ...prev,
+      stages: prev.stages.map((stage) => {
+        if (stage.id !== currentEditingStageId) return stage;
+
+        return {
+          ...stage,
+          artifacts: stage.artifacts.map((artifact) => {
+            // 找到对应的更新文件
+            const updatedFile = updatedFiles.find(
+              (f) => f.name === artifact.name || f.path === artifact.filePath
+            );
+
+            if (updatedFile && artifact.type === ArtifactType.CODE) {
+              return {
+                ...artifact,
+                content: updatedFile.content,
+              };
+            }
+
+            return artifact;
+          }),
+        };
+      }),
+    }));
+
+    message.success('代码已保存到流水线');
+  }, [currentEditingStageId]);
+
+  // 关闭IDE
+  const handleCloseIDE = useCallback(() => {
+    setIdeVisible(false);
+    setIdeFiles([]);
+    setIdeTitle('');
+    setCurrentEditingStageId(null);
+  }, []);
 
   // 渲染流水线可视化
   const renderPipelineVisualization = () => {
@@ -624,6 +718,15 @@ const PipelineView: React.FC = () => {
           />
         ))}
       </div>
+
+      {/* Web IDE */}
+      <WebIDE
+        visible={ideVisible}
+        title={ideTitle}
+        files={ideFiles}
+        onSave={handleSaveIDEFiles}
+        onClose={handleCloseIDE}
+      />
     </div>
   );
 };
