@@ -4,6 +4,8 @@ import { Typography, Button, Space, Divider, Modal, message } from 'antd';
 import { ThunderboltOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import StageCard from '../components/StageCard';
 import WebIDE from '../components/WebIDE';
+import DeployConfigModal from '../components/DeployConfigModal';
+import DeploymentStageCard from '../components/DeploymentStageCard';
 import type { Pipeline, LogEntry, ExecutionMetrics, StageArtifact, IDEFile } from '../types/pipeline';
 import { StageStatus, StageType, LogLevel, ArtifactType } from '../types/pipeline';
 import { loadArtifactContent } from '../utils/artifactLoader';
@@ -115,6 +117,15 @@ const PipelineView: React.FC = () => {
         order: 7,
         artifacts: [],
       },
+      {
+        id: 'stage-8',
+        type: StageType.DEPLOYMENT,
+        name: '部署',
+        description: '将代码部署到目标环境（Dev/Staging/Production）',
+        status: StageStatus.PENDING,
+        order: 8,
+        artifacts: [],
+      },
     ],
   });
 
@@ -123,6 +134,12 @@ const PipelineView: React.FC = () => {
   const [ideFiles, setIdeFiles] = useState<IDEFile[]>([]);
   const [ideTitle, setIdeTitle] = useState('');
   const [currentEditingStageId, setCurrentEditingStageId] = useState<string | null>(null);
+
+  // 部署相关状态
+  const [deployConfigVisible, setDeployConfigVisible] = useState(false);
+  const [deploymentEnvironment, setDeploymentEnvironment] = useState<'dev' | 'staging' | 'production'>('dev');
+  const [deploymentLogs, setDeploymentLogs] = useState<Array<{ timestamp: string; message: string; level: 'info' | 'success' | 'error' | 'warning' }>>([]);
+  const [deploymentProgress, setDeploymentProgress] = useState(0);
 
   // 加载artifact文件内容
   useEffect(() => {
@@ -276,6 +293,12 @@ const PipelineView: React.FC = () => {
     // 获取阶段名称
     const stage = pipeline.stages.find((s) => s.id === stageId);
     if (!stage) return;
+
+    // 如果是部署节点，弹出配置对话框
+    if (stage.type === StageType.DEPLOYMENT) {
+      setDeployConfigVisible(true);
+      return;
+    }
 
     // 设置阶段为运行中并自动展开
     setPipeline((prev) => ({
@@ -626,6 +649,143 @@ const PipelineView: React.FC = () => {
     });
   }, []);
 
+  // 处理部署配置确认
+  const handleDeployConfirm = useCallback(async (config: { environment: 'dev' | 'staging' | 'production'; mode: 'auto' | 'manual'; commitMessage: string }) => {
+    setDeployConfigVisible(false);
+    setDeploymentEnvironment(config.environment);
+    setDeploymentLogs([]);
+    setDeploymentProgress(0);
+
+    // 找到部署节点
+    const deploymentStage = pipeline.stages.find((s) => s.type === StageType.DEPLOYMENT);
+    if (!deploymentStage) return;
+
+    // 设置部署节点为运行中
+    setPipeline((prev) => ({
+      ...prev,
+      stages: prev.stages.map((s) =>
+        s.type === StageType.DEPLOYMENT
+          ? {
+              ...s,
+              status: StageStatus.RUNNING,
+              startedAt: new Date().toISOString(),
+              expanded: true,
+              logs: [],
+              metrics: undefined,
+            }
+          : s
+      ),
+    }));
+
+    // Mock部署流程
+    const addLog = (message: string, level: 'info' | 'success' | 'error' | 'warning' = 'info') => {
+      const timestamp = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+      setDeploymentLogs((prev) => [...prev, { timestamp, message, level }]);
+    };
+
+    try {
+      // 步骤1: Git提交（如果是auto模式）
+      if (config.mode === 'auto') {
+        addLog(`📝 提交代码到Git仓库...`);
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        addLog(`✓ Git提交成功: ${config.commitMessage}`, 'success');
+        setDeploymentProgress(10);
+      }
+
+      // 步骤2: 触发CI/CD
+      addLog(`🚀 触发${config.environment}环境的CI/CD流程...`);
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      addLog(`✓ CI/CD任务已创建 (Job ID: ${Math.random().toString(36).substring(7)})`, 'success');
+      setDeploymentProgress(20);
+
+      // 步骤3: 环境检查
+      addLog(`🔍 检查${config.environment}环境状态...`);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      addLog(`✓ 环境检查通过`, 'success');
+      setDeploymentProgress(30);
+
+      // 步骤4: 代码构建
+      addLog(`🔨 开始构建应用...`);
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      addLog(`  - 安装依赖包...`);
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      addLog(`  - 执行TypeScript编译...`);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      addLog(`  - 打包生产环境代码...`);
+      await new Promise((resolve) => setTimeout(resolve, 1800));
+      addLog(`✓ 构建完成 (build-${Date.now()}.tar.gz)`, 'success');
+      setDeploymentProgress(60);
+
+      // 步骤5: 部署到环境
+      addLog(`📦 部署到${config.environment}环境...`);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      addLog(`  - 上传部署包...`);
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      addLog(`  - 停止旧版本服务...`);
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      addLog(`  - 启动新版本服务...`);
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      addLog(`  - 配置负载均衡...`);
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      addLog(`✓ 部署成功`, 'success');
+      setDeploymentProgress(80);
+
+      // 步骤6: 健康检查
+      addLog(`💊 执行健康检查...`);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      addLog(`  - 端口检查: ✓`);
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      addLog(`  - HTTP健康检查: ✓`);
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      addLog(`  - API端点验证: ✓`);
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      addLog(`✓ 健康检查通过`, 'success');
+      setDeploymentProgress(100);
+
+      // 部署成功
+      const envDomain = {
+        dev: 'dev.example.com',
+        staging: 'staging.example.com',
+        production: 'www.example.com',
+      };
+      addLog(`🎉 部署成功！访问地址: https://${envDomain[config.environment]}`, 'success');
+
+      // 更新部署节点状态为完成
+      setPipeline((prev) => ({
+        ...prev,
+        stages: prev.stages.map((s) =>
+          s.type === StageType.DEPLOYMENT
+            ? {
+                ...s,
+                status: StageStatus.COMPLETED,
+                completedAt: new Date().toISOString(),
+                metrics: {
+                  duration: 15,
+                  cost: 0.02,
+                },
+              }
+            : s
+        ),
+      }));
+
+      message.success(`成功部署到${config.environment}环境！`);
+    } catch (error) {
+      addLog(`❌ 部署失败: ${error}`, 'error');
+      setPipeline((prev) => ({
+        ...prev,
+        stages: prev.stages.map((s) =>
+          s.type === StageType.DEPLOYMENT
+            ? {
+                ...s,
+                status: StageStatus.FAILED,
+              }
+            : s
+        ),
+      }));
+      message.error('部署失败，请重试');
+    }
+  }, [pipeline.stages]);
+
   // 渲染流水线可视化
   const renderPipelineVisualization = () => {
     return (
@@ -732,17 +892,50 @@ const PipelineView: React.FC = () => {
 
       {/* 阶段列表 */}
       <div>
-        {pipeline.stages.map((stage) => (
-          <StageCard
-            key={stage.id}
-            stage={stage}
-            onRun={handleRunStage}
-            onApprove={handleApproveStage}
-            onEditArtifact={handleEditArtifact}
-            onOpenInIDE={handleOpenInIDE}
-          />
-        ))}
+        {pipeline.stages.map((stage) =>
+          stage.type === StageType.DEPLOYMENT ? (
+            <DeploymentStageCard
+              key={stage.id}
+              stageName={stage.name}
+              environment={deploymentEnvironment}
+              status={
+                stage.status === StageStatus.PENDING
+                  ? 'pending'
+                  : stage.status === StageStatus.RUNNING
+                  ? 'deploying'
+                  : stage.status === StageStatus.COMPLETED
+                  ? 'success'
+                  : 'failed'
+              }
+              logs={deploymentLogs}
+              deployUrl={
+                stage.status === StageStatus.COMPLETED
+                  ? `https://jenkins.example.com/job/deploy-${deploymentEnvironment}/123`
+                  : undefined
+              }
+              progress={deploymentProgress}
+              onDeploy={() => handleRunStage(stage.id)}
+            />
+          ) : (
+            <StageCard
+              key={stage.id}
+              stage={stage}
+              onRun={handleRunStage}
+              onApprove={handleApproveStage}
+              onEditArtifact={handleEditArtifact}
+              onOpenInIDE={handleOpenInIDE}
+            />
+          )
+        )}
       </div>
+
+      {/* 部署配置弹窗 */}
+      <DeployConfigModal
+        visible={deployConfigVisible}
+        projectName={pipeline.projectName}
+        onConfirm={handleDeployConfirm}
+        onCancel={() => setDeployConfigVisible(false)}
+      />
 
       {/* Web IDE */}
       <WebIDE

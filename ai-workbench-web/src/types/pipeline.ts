@@ -27,6 +27,7 @@ export const StageType = {
   CODE_DEV: 'code_dev',                      // 5: 开发代码
   TEST_CASE: 'test_case',                    // 6: 测试用例
   TEST_SCRIPT: 'test_script',                // 7: 测试脚本
+  DEPLOYMENT: 'deployment',                  // 8: 部署
 } as const;
 
 export type StageType = typeof StageType[keyof typeof StageType];
