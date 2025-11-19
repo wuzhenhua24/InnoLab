@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, Button, Tag, Typography, Space, Spin, Alert, List } from 'antd';
 import {
   CheckCircleOutlined,
@@ -8,9 +8,12 @@ import {
   PlayCircleOutlined,
   FileTextOutlined,
   EyeOutlined,
+  DownOutlined,
+  UpOutlined,
 } from '@ant-design/icons';
 import type { PipelineStage } from '../types/pipeline';
 import { StageStatus } from '../types/pipeline';
+import LogViewer from './LogViewer';
 import dayjs from 'dayjs';
 
 const { Text, Title } = Typography;
@@ -20,6 +23,7 @@ interface StageCardProps {
   onRun?: (stageId: string) => void;
   onApprove?: (stageId: string) => void;
   onViewArtifact?: (artifactUrl: string) => void;
+  onToggleExpand?: (stageId: string) => void;
 }
 
 const StageCard: React.FC<StageCardProps> = ({
@@ -27,7 +31,15 @@ const StageCard: React.FC<StageCardProps> = ({
   onRun,
   onApprove,
   onViewArtifact,
+  onToggleExpand,
 }) => {
+  const [expanded, setExpanded] = useState(stage.expanded || false);
+
+  const handleToggleExpand = () => {
+    const newExpanded = !expanded;
+    setExpanded(newExpanded);
+    onToggleExpand?.(stage.id);
+  };
   // 状态标签配置
   const getStatusTag = () => {
     const statusConfig = {
@@ -160,6 +172,37 @@ const StageCard: React.FC<StageCardProps> = ({
                 </List.Item>
               )}
             />
+          </div>
+        )}
+
+        {/* 执行日志 */}
+        {stage.logs && stage.logs.length > 0 && (
+          <div>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '8px',
+              }}
+            >
+              <Text strong>执行日志:</Text>
+              <Button
+                type="text"
+                size="small"
+                icon={expanded ? <UpOutlined /> : <DownOutlined />}
+                onClick={handleToggleExpand}
+              >
+                {expanded ? '收起' : '展开'}
+              </Button>
+            </div>
+            {expanded && (
+              <LogViewer
+                logs={stage.logs}
+                isStreaming={stage.status === StageStatus.RUNNING}
+                metrics={stage.metrics}
+              />
+            )}
           </div>
         )}
 

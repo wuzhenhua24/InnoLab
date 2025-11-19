@@ -3,8 +3,8 @@ import { useParams } from 'react-router-dom';
 import { Typography, Button, Space, Divider, Modal, message } from 'antd';
 import { ThunderboltOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import StageCard from '../components/StageCard';
-import type { Pipeline } from '../types/pipeline';
-import { StageStatus, StageType } from '../types/pipeline';
+import type { Pipeline, LogEntry, ExecutionMetrics } from '../types/pipeline';
+import { StageStatus, StageType, LogLevel } from '../types/pipeline';
 
 const { Title, Text } = Typography;
 
@@ -112,44 +112,183 @@ const PipelineView: React.FC = () => {
     ],
   });
 
-  // 运行单个阶段
-  const handleRunStage = useCallback((stageId: string) => {
-    setPipeline((prev) => ({
-      ...prev,
-      stages: prev.stages.map((stage) =>
-        stage.id === stageId
-          ? { ...stage, status: StageStatus.RUNNING, startedAt: new Date().toISOString() }
-          : stage
-      ),
-    }));
+  // Mock: 生成模拟日志
+  const generateMockLogs = (stageName: string): LogEntry[] => {
+    const baseTime = Date.now();
+    const logs: LogEntry[] = [
+      {
+        id: `${baseTime}-1`,
+        level: LogLevel.STATUS_UPDATE,
+        message: `开始执行 ${stageName} 阶段...`,
+        timestamp: new Date(baseTime).toISOString(),
+      },
+      {
+        id: `${baseTime}-2`,
+        level: LogLevel.INFO,
+        message: '正在初始化执行环境...',
+        timestamp: new Date(baseTime + 200).toISOString(),
+      },
+      {
+        id: `${baseTime}-3`,
+        level: LogLevel.SUCCESS,
+        message: '环境初始化完成',
+        timestamp: new Date(baseTime + 500).toISOString(),
+      },
+      {
+        id: `${baseTime}-4`,
+        level: LogLevel.INFO,
+        message: '正在加载项目上下文...',
+        timestamp: new Date(baseTime + 700).toISOString(),
+      },
+      {
+        id: `${baseTime}-5`,
+        level: LogLevel.INFO,
+        message: '分析代码库结构...',
+        timestamp: new Date(baseTime + 1000).toISOString(),
+        metadata: { files_analyzed: 142, directories: 28 },
+      },
+      {
+        id: `${baseTime}-6`,
+        level: LogLevel.SUCCESS,
+        message: '代码库分析完成',
+        timestamp: new Date(baseTime + 1500).toISOString(),
+      },
+      {
+        id: `${baseTime}-7`,
+        level: LogLevel.INFO,
+        message: '调用AI模型生成内容...',
+        timestamp: new Date(baseTime + 1700).toISOString(),
+      },
+      {
+        id: `${baseTime}-8`,
+        level: LogLevel.SUCCESS,
+        message: 'AI模型响应成功',
+        timestamp: new Date(baseTime + 3200).toISOString(),
+      },
+      {
+        id: `${baseTime}-9`,
+        level: LogLevel.INFO,
+        message: '正在生成产出物...',
+        timestamp: new Date(baseTime + 3400).toISOString(),
+      },
+      {
+        id: `${baseTime}-10`,
+        level: LogLevel.SUCCESS,
+        message: '产出物生成完成',
+        timestamp: new Date(baseTime + 4000).toISOString(),
+      },
+      {
+        id: `${baseTime}-11`,
+        level: LogLevel.STATUS_UPDATE,
+        message: `${stageName} 阶段执行完成，等待审核`,
+        timestamp: new Date(baseTime + 4200).toISOString(),
+      },
+    ];
+    return logs;
+  };
 
-    // Mock: 模拟异步执行
-    setTimeout(() => {
-      setPipeline((prev) => {
-        const currentStage = prev.stages.find((s) => s.id === stageId);
-        const updatedPipeline = {
+  // Mock: 生成执行指标
+  const generateMockMetrics = (): ExecutionMetrics => {
+    return {
+      duration: Math.floor(Math.random() * 10 + 5), // 5-15秒
+      tokenUsage: Math.floor(Math.random() * 5000 + 1000), // 1000-6000 tokens
+      cost: Math.random() * 0.05 + 0.01, // $0.01-$0.06
+    };
+  };
+
+  // Mock: 模拟实时日志流
+  const simulateLogStreaming = (
+    stageId: string,
+    logs: LogEntry[],
+    onComplete: () => void
+  ) => {
+    let currentIndex = 0;
+    const interval = 400; // 每400ms推送一条日志
+
+    const streamInterval = setInterval(() => {
+      if (currentIndex < logs.length) {
+        const logToAdd = logs[currentIndex];
+        setPipeline((prev) => ({
           ...prev,
           stages: prev.stages.map((stage) =>
             stage.id === stageId
               ? {
                   ...stage,
-                  status: StageStatus.WAITING_REVIEW,
-                  artifacts: [
-                    {
-                      name: `${stage.name}_产出.md`,
-                      url: `/artifacts/${stage.type}.md`,
-                      createdAt: new Date().toISOString(),
-                    },
-                  ],
+                  logs: [...(stage.logs || []), logToAdd],
                 }
               : stage
           ),
-        };
-        message.success(`${currentStage?.name} 执行完成，等待审核`);
-        return updatedPipeline;
-      });
-    }, 2000);
-  }, []);
+        }));
+        currentIndex++;
+      } else {
+        clearInterval(streamInterval);
+        // 添加执行指标
+        setPipeline((prev) => ({
+          ...prev,
+          stages: prev.stages.map((stage) =>
+            stage.id === stageId
+              ? {
+                  ...stage,
+                  metrics: generateMockMetrics(),
+                }
+              : stage
+          ),
+        }));
+        onComplete();
+      }
+    }, interval);
+
+    return streamInterval;
+  };
+
+  // 运行单个阶段
+  const handleRunStage = useCallback((stageId: string) => {
+    // 获取阶段名称
+    const stage = pipeline.stages.find((s) => s.id === stageId);
+    if (!stage) return;
+
+    // 设置阶段为运行中并自动展开
+    setPipeline((prev) => ({
+      ...prev,
+      stages: prev.stages.map((s) =>
+        s.id === stageId
+          ? {
+              ...s,
+              status: StageStatus.RUNNING,
+              startedAt: new Date().toISOString(),
+              expanded: true,
+              logs: [],
+              metrics: undefined,
+            }
+          : s
+      ),
+    }));
+
+    // 生成模拟日志并开始流式推送
+    const mockLogs = generateMockLogs(stage.name);
+    simulateLogStreaming(stageId, mockLogs, () => {
+      // 日志推送完成后，更新状态为等待审核
+      setPipeline((prev) => ({
+        ...prev,
+        stages: prev.stages.map((s) =>
+          s.id === stageId
+            ? {
+                ...s,
+                status: StageStatus.WAITING_REVIEW,
+                artifacts: [
+                  {
+                    name: `${s.name}_产出.md`,
+                    url: `/artifacts/${s.type}.md`,
+                    createdAt: new Date().toISOString(),
+                  },
+                ],
+              }
+            : s
+        ),
+      }));
+      message.success(`${stage.name} 执行完成，等待审核`);
+    });
+  }, [pipeline.stages]);
 
   // 批准阶段
   const handleApproveStage = useCallback((stageId: string) => {
@@ -186,25 +325,12 @@ const PipelineView: React.FC = () => {
         setPipeline((prev) => ({ ...prev, isAutoRunning: true }));
         message.info('开始一键执行流水线...');
 
-        // Mock: 模拟自动执行
+        // Mock: 模拟自动执行所有待处理的阶段
         const pendingStages = pipeline.stages.filter((s) => s.status === StageStatus.PENDING);
-        let delay = 1000;
+        let cumulativeDelay = 500;
 
         pendingStages.forEach((stage, index) => {
-          // 开始运行
-          setTimeout(() => {
-            setPipeline((prev) => ({
-              ...prev,
-              stages: prev.stages.map((s) =>
-                s.id === stage.id
-                  ? { ...s, status: StageStatus.RUNNING, startedAt: new Date().toISOString() }
-                  : s
-              ),
-            }));
-          }, delay);
-
-          // 完成
-          delay += 3000;
+          // 开始运行阶段
           setTimeout(() => {
             setPipeline((prev) => ({
               ...prev,
@@ -212,25 +338,50 @@ const PipelineView: React.FC = () => {
                 s.id === stage.id
                   ? {
                       ...s,
-                      status: StageStatus.COMPLETED,
-                      completedAt: new Date().toISOString(),
-                      artifacts: [
-                        {
-                          name: `${s.name}_产出.md`,
-                          url: `/artifacts/${s.type}.md`,
-                          createdAt: new Date().toISOString(),
-                        },
-                      ],
+                      status: StageStatus.RUNNING,
+                      startedAt: new Date().toISOString(),
+                      expanded: true,
+                      logs: [],
+                      metrics: undefined,
                     }
                   : s
               ),
             }));
 
-            if (index === pendingStages.length - 1) {
-              message.success('流水线执行完成！');
-              setPipeline((prev) => ({ ...prev, isAutoRunning: false }));
-            }
-          }, delay);
+            // 生成并推送日志
+            const mockLogs = generateMockLogs(stage.name);
+            simulateLogStreaming(stage.id, mockLogs, () => {
+              // 日志推送完成后直接标记为完成（一键执行无需审核）
+              setPipeline((prev) => ({
+                ...prev,
+                stages: prev.stages.map((s) =>
+                  s.id === stage.id
+                    ? {
+                        ...s,
+                        status: StageStatus.COMPLETED,
+                        completedAt: new Date().toISOString(),
+                        artifacts: [
+                          {
+                            name: `${s.name}_产出.md`,
+                            url: `/artifacts/${s.type}.md`,
+                            createdAt: new Date().toISOString(),
+                          },
+                        ],
+                      }
+                    : s
+                ),
+              }));
+
+              // 最后一个阶段完成时结束
+              if (index === pendingStages.length - 1) {
+                message.success('流水线执行完成！');
+                setPipeline((prev) => ({ ...prev, isAutoRunning: false }));
+              }
+            });
+          }, cumulativeDelay);
+
+          // 每个阶段间隔约5秒（日志推送时间）
+          cumulativeDelay += 5500;
         });
       },
     });

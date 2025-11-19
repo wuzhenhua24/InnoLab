@@ -41,6 +41,40 @@ export interface StageArtifact {
 }
 
 /**
+ * 日志级别
+ */
+export const LogLevel = {
+  INFO: 'info',
+  SUCCESS: 'success',
+  ERROR: 'error',
+  WARNING: 'warning',
+  METRICS: 'metrics',
+  STATUS_UPDATE: 'status_update',
+} as const;
+
+export type LogLevel = typeof LogLevel[keyof typeof LogLevel];
+
+/**
+ * 执行日志条目
+ */
+export interface LogEntry {
+  id: string;
+  level: LogLevel;
+  message: string;
+  timestamp: string;
+  metadata?: Record<string, any>;
+}
+
+/**
+ * 执行指标
+ */
+export interface ExecutionMetrics {
+  duration?: number;      // 执行时长（秒）
+  tokenUsage?: number;    // Token消耗
+  cost?: number;          // 成本（美元）
+}
+
+/**
  * 流水线阶段
  */
 export interface PipelineStage {
@@ -58,6 +92,12 @@ export interface PipelineStage {
   autoRun?: boolean;
   // 是否需要人工输入（如PRD上传）
   requiresInput?: boolean;
+  // 执行日志
+  logs?: LogEntry[];
+  // 执行指标
+  metrics?: ExecutionMetrics;
+  // 是否展开（显示日志）
+  expanded?: boolean;
 }
 
 /**
