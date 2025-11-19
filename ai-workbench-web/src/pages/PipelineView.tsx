@@ -221,18 +221,7 @@ const PipelineView: React.FC = () => {
         currentIndex++;
       } else {
         clearInterval(streamInterval);
-        // 添加执行指标
-        setPipeline((prev) => ({
-          ...prev,
-          stages: prev.stages.map((stage) =>
-            stage.id === stageId
-              ? {
-                  ...stage,
-                  metrics: generateMockMetrics(),
-                }
-              : stage
-          ),
-        }));
+        // 日志推送完成，执行回调
         onComplete();
       }
     }, interval);
@@ -266,7 +255,7 @@ const PipelineView: React.FC = () => {
     // 生成模拟日志并开始流式推送
     const mockLogs = generateMockLogs(stage.name);
     simulateLogStreaming(stageId, mockLogs, () => {
-      // 日志推送完成后，更新状态为等待审核
+      // 日志推送完成后，更新状态为等待审核，并添加执行指标
       setPipeline((prev) => ({
         ...prev,
         stages: prev.stages.map((s) =>
@@ -274,6 +263,7 @@ const PipelineView: React.FC = () => {
             ? {
                 ...s,
                 status: StageStatus.WAITING_REVIEW,
+                metrics: generateMockMetrics(),
                 artifacts: [
                   {
                     name: `${s.name}_产出.md`,
@@ -350,7 +340,7 @@ const PipelineView: React.FC = () => {
             // 生成并推送日志
             const mockLogs = generateMockLogs(stage.name);
             simulateLogStreaming(stage.id, mockLogs, () => {
-              // 日志推送完成后直接标记为完成（一键执行无需审核）
+              // 日志推送完成后直接标记为完成（一键执行无需审核），并添加执行指标
               setPipeline((prev) => ({
                 ...prev,
                 stages: prev.stages.map((s) =>
@@ -359,6 +349,7 @@ const PipelineView: React.FC = () => {
                         ...s,
                         status: StageStatus.COMPLETED,
                         completedAt: new Date().toISOString(),
+                        metrics: generateMockMetrics(),
                         artifacts: [
                           {
                             name: `${s.name}_产出.md`,
