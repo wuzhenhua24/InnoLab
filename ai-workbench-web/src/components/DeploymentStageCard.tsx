@@ -111,7 +111,6 @@ const DeploymentStageCard: React.FC<DeploymentStageCardProps> = ({
       style={{ marginBottom: 16 }}
       title={
         <Space>
-          <span style={{ color: statusConfig.color }}>{statusConfig.icon}</span>
           <Text strong>[{stageOrder}] {stageName}</Text>
           <Tag color={statusConfig.color}>
             {statusConfig.emoji} {statusConfig.text}
