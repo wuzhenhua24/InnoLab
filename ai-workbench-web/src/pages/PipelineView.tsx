@@ -22,16 +22,16 @@ const PipelineView: React.FC = () => {
     stages: [
       {
         id: 'stage-0',
-        type: StageType.CODE_ANALYSIS,
-        name: '逆向代码分析',
+        type: StageType.PROJECT_ANALYSIS,
+        name: '项目分析',
         description: '自动分析代码库结构、技术栈、主要逻辑',
         status: StageStatus.COMPLETED,
         order: 0,
         autoRun: true,
         artifacts: [
           {
-            name: 'CODE_SUMMARY.md',
-            url: '/artifacts/code-summary.md',
+            name: 'PROJECT_ANALYSIS.md',
+            url: '/artifacts/project-analysis.md',
             createdAt: new Date(Date.now() - 3600000).toISOString(),
           },
         ],
@@ -40,16 +40,16 @@ const PipelineView: React.FC = () => {
       },
       {
         id: 'stage-1',
-        type: StageType.PRD_INPUT,
-        name: '需求文档',
-        description: '上传或编写产品需求文档（PRD）',
+        type: StageType.DOC_UPLOAD,
+        name: '文档上传',
+        description: '上传需求文档、设计稿等原始资料',
         status: StageStatus.COMPLETED,
         order: 1,
         requiresInput: true,
         artifacts: [
           {
-            name: 'User_Avatar_PRD.md',
-            url: '/artifacts/prd.md',
+            name: '需求文档.md',
+            url: '/artifacts/requirement-doc.md',
             createdAt: new Date(Date.now() - 1800000).toISOString(),
           },
         ],
@@ -57,29 +57,56 @@ const PipelineView: React.FC = () => {
       },
       {
         id: 'stage-2',
-        type: StageType.ARCHITECTURE,
-        name: '架构设计',
-        description: '基于PRD和代码分析生成架构设计文档',
+        type: StageType.PRD_GEN,
+        name: 'PRD生成',
+        description: '基于上传的文档自动生成标准化的PRD',
         status: StageStatus.PENDING,
         order: 2,
         artifacts: [],
       },
       {
         id: 'stage-3',
-        type: StageType.CODE_GEN,
-        name: '代码生成',
-        description: '根据架构设计生成代码文件',
+        type: StageType.ARCHITECTURE,
+        name: '架构设计',
+        description: '基于PRD和项目分析生成系统架构设计',
         status: StageStatus.PENDING,
         order: 3,
         artifacts: [],
       },
       {
         id: 'stage-4',
-        type: StageType.TEST_GEN,
-        name: '测试用例生成',
-        description: '为生成的代码创建测试用例',
+        type: StageType.DETAILED_DESIGN,
+        name: '详细设计',
+        description: '生成详细的技术设计文档和接口定义',
         status: StageStatus.PENDING,
         order: 4,
+        artifacts: [],
+      },
+      {
+        id: 'stage-5',
+        type: StageType.CODE_DEV,
+        name: '开发代码',
+        description: '根据详细设计生成完整的代码实现',
+        status: StageStatus.PENDING,
+        order: 5,
+        artifacts: [],
+      },
+      {
+        id: 'stage-6',
+        type: StageType.TEST_CASE,
+        name: '测试用例',
+        description: '为生成的代码创建单元测试和集成测试用例',
+        status: StageStatus.PENDING,
+        order: 6,
+        artifacts: [],
+      },
+      {
+        id: 'stage-7',
+        type: StageType.TEST_SCRIPT,
+        name: '测试脚本',
+        description: '生成自动化测试脚本和测试执行工具',
+        status: StageStatus.PENDING,
+        order: 7,
         artifacts: [],
       },
     ],
@@ -220,10 +247,11 @@ const PipelineView: React.FC = () => {
     return (
       <div
         style={{
-          padding: '40px 0',
+          padding: '40px 20px',
           background: '#fafafa',
           borderRadius: '8px',
           marginBottom: '32px',
+          overflowX: 'auto',
         }}
       >
         <div
@@ -231,43 +259,58 @@ const PipelineView: React.FC = () => {
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
-            gap: '24px',
+            gap: '16px',
+            minWidth: 'fit-content',
           }}
         >
           {pipeline.stages.map((stage, index) => (
             <React.Fragment key={stage.id}>
-              {/* 节点 */}
-              <div
-                style={{
-                  width: '80px',
-                  height: '80px',
-                  borderRadius: '50%',
-                  background:
-                    stage.status === StageStatus.COMPLETED
-                      ? '#52c41a'
-                      : stage.status === StageStatus.RUNNING
-                      ? '#1890ff'
-                      : stage.status === StageStatus.WAITING_REVIEW
-                      ? '#faad14'
-                      : stage.status === StageStatus.FAILED
-                      ? '#ff4d4f'
-                      : '#d9d9d9',
-                  color: '#fff',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                }}
-              >
-                <div>{stage.order === 0 ? 'S' : stage.order}</div>
+              {/* 节点容器 */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                {/* 节点 */}
+                <div
+                  style={{
+                    width: '60px',
+                    height: '60px',
+                    borderRadius: '50%',
+                    background:
+                      stage.status === StageStatus.COMPLETED
+                        ? '#52c41a'
+                        : stage.status === StageStatus.RUNNING
+                        ? '#1890ff'
+                        : stage.status === StageStatus.WAITING_REVIEW
+                        ? '#faad14'
+                        : stage.status === StageStatus.FAILED
+                        ? '#ff4d4f'
+                        : '#d9d9d9',
+                    color: '#fff',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    fontSize: '16px',
+                    fontWeight: 'bold',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                  }}
+                >
+                  <div>{stage.order === 0 ? 'S' : stage.order}</div>
+                </div>
+                {/* 节点名称 */}
+                <div
+                  style={{
+                    fontSize: '12px',
+                    color: '#595959',
+                    textAlign: 'center',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {stage.name}
+                </div>
               </div>
 
               {/* 连接线 */}
               {index < pipeline.stages.length - 1 && (
-                <ArrowRightOutlined style={{ fontSize: '24px', color: '#bfbfbf' }} />
+                <ArrowRightOutlined style={{ fontSize: '20px', color: '#bfbfbf', marginTop: '-20px' }} />
               )}
             </React.Fragment>
           ))}

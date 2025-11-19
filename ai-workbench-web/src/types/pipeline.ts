@@ -19,11 +19,14 @@ export type StageStatus = typeof StageStatus[keyof typeof StageStatus];
  * 阶段类型
  */
 export const StageType = {
-  CODE_ANALYSIS: 'code_analysis',     // S: 逆向代码分析
-  PRD_INPUT: 'prd_input',             // 1: 需求文档
-  ARCHITECTURE: 'architecture',        // 2: 架构设计
-  CODE_GEN: 'code_gen',               // 3: 代码生成
-  TEST_GEN: 'test_gen',               // 4: 测试用例生成
+  PROJECT_ANALYSIS: 'project_analysis',     // S: 项目分析
+  DOC_UPLOAD: 'doc_upload',                 // 1: 文档上传
+  PRD_GEN: 'prd_gen',                       // 2: PRD生成
+  ARCHITECTURE: 'architecture',              // 3: 架构设计
+  DETAILED_DESIGN: 'detailed_design',        // 4: 详细设计
+  CODE_DEV: 'code_dev',                      // 5: 开发代码
+  TEST_CASE: 'test_case',                    // 6: 测试用例
+  TEST_SCRIPT: 'test_script',                // 7: 测试脚本
 } as const;
 
 export type StageType = typeof StageType[keyof typeof StageType];
