@@ -7,9 +7,11 @@ import {
   CloseOutlined,
   GitlabOutlined,
   DownloadOutlined,
+  RocketOutlined,
 } from '@ant-design/icons';
 import Editor from '@monaco-editor/react';
 import GitCommitModal from './GitCommitModal';
+import DeployModal from './DeployModal';
 import { exportFilesToZip } from '../utils/fileExporter';
 import type { IDEFile } from '../types/pipeline';
 
@@ -40,6 +42,7 @@ const WebIDE: React.FC<WebIDEProps> = ({ visible, title, files, projectName, onS
   const [originalFiles, setOriginalFiles] = useState<IDEFile[]>([]);
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
   const [gitModalVisible, setGitModalVisible] = useState(false);
+  const [deployModalVisible, setDeployModalVisible] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
   // 初始化时选择第一个文件并保存原始状态
@@ -204,6 +207,17 @@ const WebIDE: React.FC<WebIDEProps> = ({ visible, title, files, projectName, onS
     }
   };
 
+  // 一键部署
+  const handleDeploy = async () => {
+    // Mock实现，实际应调用后端API
+    return new Promise<void>((resolve) => {
+      setTimeout(() => {
+        console.log('部署完成');
+        resolve();
+      }, 100);
+    });
+  };
+
   // 获取修改文件的数量
   const getModifiedCount = () => {
     return Array.from(editedFiles.values()).filter(f => f.isModified).length;
@@ -241,6 +255,13 @@ const WebIDE: React.FC<WebIDEProps> = ({ visible, title, files, projectName, onS
             disabled={isExporting}
           >
             导出代码
+          </Button>
+          <Button
+            icon={<RocketOutlined />}
+            onClick={() => setDeployModalVisible(true)}
+            type="default"
+          >
+            一键部署
           </Button>
           <Button
             type="primary"
@@ -358,6 +379,14 @@ const WebIDE: React.FC<WebIDEProps> = ({ visible, title, files, projectName, onS
           }
         }}
         onClose={() => setGitModalVisible(false)}
+      />
+
+      {/* 一键部署模态框 */}
+      <DeployModal
+        visible={deployModalVisible}
+        projectName={projectName}
+        onDeploy={handleDeploy}
+        onClose={() => setDeployModalVisible(false)}
       />
     </Modal>
   );
