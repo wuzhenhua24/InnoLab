@@ -110,11 +110,6 @@ const LogViewer: React.FC<LogViewerProps> = ({
                 Token: <Text strong>{metrics.tokenUsage.toLocaleString()}</Text>
               </Text>
             )}
-            {metrics.cost !== undefined && (
-              <Text type="secondary">
-                成本: <Text strong>${metrics.cost.toFixed(4)}</Text>
-              </Text>
-            )}
           </Space>
         </Space>
       </div>

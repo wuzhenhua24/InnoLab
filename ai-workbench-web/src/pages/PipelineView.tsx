@@ -192,7 +192,6 @@ const PipelineView: React.FC = () => {
     return {
       duration: Math.floor(Math.random() * 10 + 5), // 5-15秒
       tokenUsage: Math.floor(Math.random() * 5000 + 1000), // 1000-6000 tokens
-      cost: Math.random() * 0.05 + 0.01, // $0.01-$0.06
     };
   };
 
