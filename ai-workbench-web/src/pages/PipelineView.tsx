@@ -473,12 +473,6 @@ const PipelineView: React.FC = () => {
     });
   }, [pipeline.stages]);
 
-  // 查看产出物
-  const handleViewArtifact = useCallback((url: string) => {
-    message.info(`查看产出物: ${url}`);
-    // TODO: 实现产出物查看功能
-  }, []);
-
   // 编辑产出物
   const handleEditArtifact = useCallback((stageId: string, artifact: StageArtifact, newContent: string) => {
     setPipeline((prev) => ({
@@ -625,7 +619,6 @@ const PipelineView: React.FC = () => {
             stage={stage}
             onRun={handleRunStage}
             onApprove={handleApproveStage}
-            onViewArtifact={handleViewArtifact}
             onEditArtifact={handleEditArtifact}
             onOpenInIDE={handleOpenInIDE}
           />

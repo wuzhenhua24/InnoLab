@@ -25,7 +25,6 @@ interface StageCardProps {
   stage: PipelineStage;
   onRun?: (stageId: string) => void;
   onApprove?: (stageId: string) => void;
-  onViewArtifact?: (artifactUrl: string) => void;
   onEditArtifact?: (stageId: string, artifact: StageArtifact, newContent: string) => void;
   onOpenInIDE?: (stageId: string) => void;
   onToggleExpand?: (stageId: string) => void;
@@ -35,7 +34,6 @@ const StageCard: React.FC<StageCardProps> = ({
   stage,
   onRun,
   onApprove,
-  onViewArtifact,
   onEditArtifact,
   onOpenInIDE,
   onToggleExpand,
@@ -183,27 +181,21 @@ const StageCard: React.FC<StageCardProps> = ({
               dataSource={stage.artifacts}
               renderItem={(artifact) => (
                 <List.Item
-                  actions={[
-                    <Button
-                      type="link"
-                      size="small"
-                      icon={<FileTextOutlined />}
-                      onClick={() => onViewArtifact?.(artifact.url)}
-                    >
-                      查看
-                    </Button>,
+                  actions={
                     // 只为Markdown类型的产出物显示编辑按钮
-                    artifact.type === ArtifactType.MARKDOWN && stage.status === StageStatus.WAITING_REVIEW && (
-                      <Button
-                        type="link"
-                        size="small"
-                        icon={<EditOutlined />}
-                        onClick={() => handleEditArtifact(artifact)}
-                      >
-                        编辑
-                      </Button>
-                    ),
-                  ].filter(Boolean)}
+                    artifact.type === ArtifactType.MARKDOWN
+                      ? [
+                          <Button
+                            type="link"
+                            size="small"
+                            icon={<EditOutlined />}
+                            onClick={() => handleEditArtifact(artifact)}
+                          >
+                            编辑
+                          </Button>,
+                        ]
+                      : []
+                  }
                 >
                   <Space>
                     {artifact.type === ArtifactType.MARKDOWN ? (
