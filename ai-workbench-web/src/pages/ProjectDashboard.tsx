@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Input, Button, Row, Col, Typography, Empty } from 'antd';
 import { SearchOutlined, PlusOutlined, FolderOutlined } from '@ant-design/icons';
 import ProjectCard from '../components/ProjectCard';
@@ -8,6 +9,7 @@ import type { Project, CreateProjectInput } from '../types/project';
 const { Title } = Typography;
 
 const ProjectDashboard: React.FC = () => {
+  const navigate = useNavigate();
   const [searchText, setSearchText] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [projects, setProjects] = useState<Project[]>([
@@ -94,13 +96,13 @@ const ProjectDashboard: React.FC = () => {
     };
     setProjects([newProject, ...projects]);
     setIsModalOpen(false);
-    // TODO: 这里应该跳转到项目工作区
-    console.log('创建项目:', newProject);
+    // 跳转到新创建项目的流水线页面
+    navigate(`/projects/${newProject.id}/pipeline`);
   };
 
   const handleEnterProject = (projectId: string) => {
-    // TODO: 实现跳转到项目工作区
-    console.log('进入项目:', projectId);
+    // 跳转到项目的流水线页面
+    navigate(`/projects/${projectId}/pipeline`);
   };
 
   return (
