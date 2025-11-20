@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { Typography, Space, Divider, Modal, message } from 'antd';
+import { Typography, Space, Divider, message } from 'antd';
 import { BulbOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import BusinessStageCard from '../components/BusinessStageCard';
 import MarkdownEditor from '../components/MarkdownEditor';
@@ -178,196 +178,183 @@ const BusinessPipelineView: React.FC = () => {
 
   // 节点2：批准PRD并开始构建
   const handleApprovePRD = useCallback(() => {
-    console.log('handleApprovePRD called');
-    console.log('Creating Modal.confirm...');
-    const modal = Modal.confirm({
-      title: '确认批准并开始构建？',
-      content: '批准后，AI研发团队将开始全自动构建（架构→代码→测试→部署），预计需要30分钟。期间无需人工介入。',
-      okText: '确认批准',
-      cancelText: '取消',
-      onCancel: () => {
-        console.log('Modal cancelled by user');
+    console.log('handleApprovePRD called - starting build immediately');
+
+    // 节点2标记为完成
+    setPipeline((prev) => ({
+      ...prev,
+      stages: prev.stages.map((s) => {
+        if (s.id === 'business-stage-2') {
+          return { ...s, status: StageStatus.COMPLETED };
+        }
+        // 节点3开始运行
+        if (s.id === 'business-stage-3') {
+          return { ...s, status: StageStatus.RUNNING, startedAt: new Date().toISOString() };
+        }
+        return s;
+      }),
+    }));
+
+    message.success('产品方案已批准，AI研发团队开始构建...');
+
+    // 清空之前的日志
+    setBackendProgress({ currentStage: '', percentage: 0, logs: [] });
+
+    // 初始化构建
+    addBuildLog('🚀 开始初始化AI研发流水线...');
+    addBuildLog('✓ 已加载PRD文档');
+    addBuildLog('✓ 已加载市场调研报告');
+    addBuildLog('✓ 初始化完成，准备开始构建');
+
+    // 模拟完整的8节点流水线（后台自动运行）
+    const stages = [
+      {
+        name: '架构设计',
+        duration: 2500,
+        logs: [
+          '正在分析PRD需求...',
+          '生成系统架构图...',
+          '设计数据库模型...',
+          '确定技术栈：React + Node.js + MongoDB',
+          '✓ 架构设计完成'
+        ]
       },
-      onOk: () => {
-        console.log('Modal confirmed, starting build process');
-        // 节点2标记为完成
-        setPipeline((prev) => ({
-          ...prev,
-          stages: prev.stages.map((s) => {
-            if (s.id === 'business-stage-2') {
-              return { ...s, status: StageStatus.COMPLETED };
-            }
-            // 节点3开始运行
-            if (s.id === 'business-stage-3') {
-              return { ...s, status: StageStatus.RUNNING, startedAt: new Date().toISOString() };
-            }
-            return s;
-          }),
-        }));
+      {
+        name: '详细设计',
+        duration: 2500,
+        logs: [
+          '正在设计前端组件结构...',
+          '设计API接口规范...',
+          '生成数据库Schema...',
+          '设计页面路由...',
+          '✓ 详细设计完成'
+        ]
+      },
+      {
+        name: '代码开发',
+        duration: 4000,
+        logs: [
+          '正在生成前端代码...',
+          '创建React组件：HomePage, ProductList, UserCenter...',
+          '正在生成后端API...',
+          '实现用户认证模块...',
+          '实现交易功能模块...',
+          '集成数据库操作...',
+          '✓ 代码开发完成'
+        ]
+      },
+      {
+        name: '测试用例生成',
+        duration: 2000,
+        logs: [
+          '正在分析代码覆盖范围...',
+          '生成单元测试用例...',
+          '生成集成测试用例...',
+          '生成E2E测试场景...',
+          '✓ 测试用例生成完成'
+        ]
+      },
+      {
+        name: '测试脚本执行',
+        duration: 2000,
+        logs: [
+          '运行单元测试... (27/27 passed)',
+          '运行集成测试... (15/15 passed)',
+          '运行E2E测试... (8/8 passed)',
+          '生成测试报告...',
+          '✓ 所有测试通过'
+        ]
+      },
+      {
+        name: '部署',
+        duration: 2500,
+        logs: [
+          '正在构建生产版本...',
+          '优化前端资源...',
+          '正在部署到云服务器...',
+          '配置Nginx反向代理...',
+          '配置HTTPS证书...',
+          '✓ 部署成功'
+        ]
+      },
+    ];
 
-        message.success('产品方案已批准，AI研发团队开始构建...');
+    let currentProgress = 0;
+    const totalDuration = stages.reduce((sum, s) => sum + s.duration, 0);
 
-        // 清空之前的日志
-        setBackendProgress({ currentStage: '', percentage: 0, logs: [] });
+    // 逐个阶段执行
+    setTimeout(() => {
+      console.log('Starting build stages...');
+      stages.reduce((promise, stage, stageIndex) => {
+        return promise.then(() => {
+          console.log(`Starting stage ${stageIndex + 1}: ${stage.name}`);
+          // 阶段开始
+          addBuildLog(`\n📦 [${stageIndex + 1}/${stages.length}] ${stage.name}...`);
 
-        // 初始化构建
-        addBuildLog('🚀 开始初始化AI研发流水线...');
-        addBuildLog('✓ 已加载PRD文档');
-        addBuildLog('✓ 已加载市场调研报告');
-        addBuildLog('✓ 初始化完成，准备开始构建');
+          setBackendProgress((prev) => ({
+            ...prev,
+            currentStage: stage.name,
+            percentage: Math.round((currentProgress / totalDuration) * 100),
+          }));
 
-        // 模拟完整的8节点流水线（后台自动运行）
-        const stages = [
-          {
-            name: '架构设计',
-            duration: 2500,
-            logs: [
-              '正在分析PRD需求...',
-              '生成系统架构图...',
-              '设计数据库模型...',
-              '确定技术栈：React + Node.js + MongoDB',
-              '✓ 架构设计完成'
-            ]
-          },
-          {
-            name: '详细设计',
-            duration: 2500,
-            logs: [
-              '正在设计前端组件结构...',
-              '设计API接口规范...',
-              '生成数据库Schema...',
-              '设计页面路由...',
-              '✓ 详细设计完成'
-            ]
-          },
-          {
-            name: '代码开发',
-            duration: 4000,
-            logs: [
-              '正在生成前端代码...',
-              '创建React组件：HomePage, ProductList, UserCenter...',
-              '正在生成后端API...',
-              '实现用户认证模块...',
-              '实现交易功能模块...',
-              '集成数据库操作...',
-              '✓ 代码开发完成'
-            ]
-          },
-          {
-            name: '测试用例生成',
-            duration: 2000,
-            logs: [
-              '正在分析代码覆盖范围...',
-              '生成单元测试用例...',
-              '生成集成测试用例...',
-              '生成E2E测试场景...',
-              '✓ 测试用例生成完成'
-            ]
-          },
-          {
-            name: '测试脚本执行',
-            duration: 2000,
-            logs: [
-              '运行单元测试... (27/27 passed)',
-              '运行集成测试... (15/15 passed)',
-              '运行E2E测试... (8/8 passed)',
-              '生成测试报告...',
-              '✓ 所有测试通过'
-            ]
-          },
-          {
-            name: '部署',
-            duration: 2500,
-            logs: [
-              '正在构建生产版本...',
-              '优化前端资源...',
-              '正在部署到云服务器...',
-              '配置Nginx反向代理...',
-              '配置HTTPS证书...',
-              '✓ 部署成功'
-            ]
-          },
-        ];
+          // 逐条输出日志
+          const logInterval = stage.duration / (stage.logs.length + 1); // +1 to finish before stage completes
 
-        let currentProgress = 0;
-        const totalDuration = stages.reduce((sum, s) => sum + s.duration, 0);
+          return new Promise<void>((resolve) => {
+            // 输出所有日志
+            stage.logs.forEach((log, index) => {
+              setTimeout(() => {
+                addBuildLog(log);
+              }, logInterval * (index + 1));
+            });
 
-        // 逐个阶段执行
-        setTimeout(() => {
-          console.log('Starting build stages...');
-          stages.reduce((promise, stage, stageIndex) => {
-            return promise.then(() => {
-              console.log(`Starting stage ${stageIndex + 1}: ${stage.name}`);
-              // 阶段开始
-              addBuildLog(`\n📦 [${stageIndex + 1}/${stages.length}] ${stage.name}...`);
-
+            // 在阶段完成时 resolve
+            setTimeout(() => {
+              currentProgress += stage.duration;
               setBackendProgress((prev) => ({
                 ...prev,
                 currentStage: stage.name,
                 percentage: Math.round((currentProgress / totalDuration) * 100),
               }));
-
-              // 逐条输出日志
-              const logInterval = stage.duration / (stage.logs.length + 1); // +1 to finish before stage completes
-
-              return new Promise<void>((resolve) => {
-                // 输出所有日志
-                stage.logs.forEach((log, index) => {
-                  setTimeout(() => {
-                    addBuildLog(log);
-                  }, logInterval * (index + 1));
-                });
-
-                // 在阶段完成时 resolve
-                setTimeout(() => {
-                  currentProgress += stage.duration;
-                  setBackendProgress((prev) => ({
-                    ...prev,
-                    currentStage: stage.name,
-                    percentage: Math.round((currentProgress / totalDuration) * 100),
-                  }));
-                  console.log(`Stage ${stageIndex + 1} completed`);
-                  resolve();
-                }, stage.duration);
-              });
-            });
-          }, Promise.resolve()).then(() => {
-            // 所有阶段完成，Demo交付
-            addBuildLog('\n🎉 构建流程全部完成！');
-            addBuildLog(`✓ Demo已部署至: https://demo.example.com/${projectId || 'your-app'}`);
-
-            setPipeline((prev) => ({
-              ...prev,
-              stages: prev.stages.map((s) =>
-                s.id === 'business-stage-3'
-                  ? {
-                      ...s,
-                      status: StageStatus.COMPLETED,
-                      completedAt: new Date().toISOString(),
-                      artifacts: [
-                        {
-                          name: 'Demo应用',
-                          url: `https://demo.example.com/${projectId || 'your-app'}`,
-                          type: ArtifactType.MARKDOWN,
-                          createdAt: new Date().toISOString(),
-                        },
-                      ],
-                    }
-                  : s
-              ),
-            }));
-
-            setBackendProgress((prev) => ({
-              ...prev,
-              currentStage: '构建完成',
-              percentage: 100
-            }));
-            message.success('🎉 Demo构建完成！您的创意已成功转化为产品原型', 10);
+              console.log(`Stage ${stageIndex + 1} completed`);
+              resolve();
+            }, stage.duration);
           });
-        }, 500);
-      },
-    });
-    console.log('Modal.confirm created, modal instance:', modal);
+        });
+      }, Promise.resolve()).then(() => {
+        // 所有阶段完成，Demo交付
+        addBuildLog('\n🎉 构建流程全部完成！');
+        addBuildLog(`✓ Demo已部署至: https://demo.example.com/${projectId || 'your-app'}`);
+
+        setPipeline((prev) => ({
+          ...prev,
+          stages: prev.stages.map((s) =>
+            s.id === 'business-stage-3'
+              ? {
+                  ...s,
+                  status: StageStatus.COMPLETED,
+                  completedAt: new Date().toISOString(),
+                  artifacts: [
+                    {
+                      name: 'Demo应用',
+                      url: `https://demo.example.com/${projectId || 'your-app'}`,
+                      type: ArtifactType.MARKDOWN,
+                      createdAt: new Date().toISOString(),
+                    },
+                  ],
+                }
+              : s
+          ),
+        }));
+
+        setBackendProgress((prev) => ({
+          ...prev,
+          currentStage: '构建完成',
+          percentage: 100
+        }));
+        message.success('🎉 Demo构建完成！您的创意已成功转化为产品原型', 10);
+      });
+    }, 500);
   }, [projectId, addBuildLog]);
 
   // 查看产出物
