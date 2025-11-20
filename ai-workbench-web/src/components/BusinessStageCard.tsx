@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, Button, Tag, Typography, Space, Alert, Input, List } from 'antd';
+import { Card, Button, Tag, Typography, Space, Alert, Input, List, Progress } from 'antd';
 import {
   CheckCircleOutlined,
   ClockCircleOutlined,
@@ -20,6 +20,7 @@ const { TextArea } = Input;
 interface BusinessStageCardProps {
   stage: PipelineStage;
   ideaInput?: string; // 节点1的想法输入
+  backendProgress?: { currentStage: string; percentage: number }; // 后台流水线进度
   onStartResearch?: (idea: string) => void; // 节点1：开始调研
   onEditPRD?: (artifact: StageArtifact) => void; // 节点2：编辑PRD
   onApprovePRD?: () => void; // 节点2：批准PRD并开始构建
@@ -29,6 +30,7 @@ interface BusinessStageCardProps {
 const BusinessStageCard: React.FC<BusinessStageCardProps> = ({
   stage,
   ideaInput,
+  backendProgress,
   onStartResearch,
   onEditPRD,
   onApprovePRD,
@@ -279,20 +281,33 @@ const BusinessStageCard: React.FC<BusinessStageCardProps> = ({
 
     if (stage.status === StageStatus.RUNNING) {
       return (
-        <Alert
-          message="您的AI研发团队正在构建..."
-          description={
-            <div>
-              <div>正在进行：架构设计 → 代码开发 → 测试 → 部署</div>
-              <div style={{ marginTop: 8 }}>
-                <Text type="secondary">预计还需约 {stage.order} 分钟</Text>
-              </div>
+        <div>
+          <Alert
+            message="您的AI研发团队正在全速构建..."
+            description="后台正在自动执行完整的研发流水线，无需人工介入"
+            type="info"
+            showIcon
+            icon={<LoadingOutlined />}
+            style={{ marginBottom: 16 }}
+          />
+
+          {backendProgress && (
+            <div style={{ padding: 16, background: '#f0f5ff', borderRadius: 4 }}>
+              <Space direction="vertical" style={{ width: '100%' }} size="small">
+                <div>
+                  <Text strong>后台流水线进度：</Text>
+                  <Text type="secondary" style={{ marginLeft: 8 }}>
+                    {backendProgress.currentStage || '准备中...'}
+                  </Text>
+                </div>
+                <Progress percent={backendProgress.percentage} status="active" />
+                <div style={{ fontSize: 12, color: '#8c8c8c' }}>
+                  正在执行：架构设计 → 详细设计 → 代码开发 → 测试用例 → 测试脚本 → 部署
+                </div>
+              </Space>
             </div>
-          }
-          type="info"
-          showIcon
-          icon={<LoadingOutlined />}
-        />
+          )}
+        </div>
       );
     }
 

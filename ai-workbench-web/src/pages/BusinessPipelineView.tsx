@@ -58,6 +58,12 @@ const BusinessPipelineView: React.FC = () => {
   const [editingArtifact, setEditingArtifact] = useState<StageArtifact | null>(null);
   const [viewingArtifact, setViewingArtifact] = useState<StageArtifact | null>(null);
 
+  // 后台流水线状态（用于显示构建进度）
+  const [backendProgress, setBackendProgress] = useState({
+    currentStage: '',
+    percentage: 0,
+  });
+
   // 节点1：开始调研
   const handleStartResearch = useCallback((idea: string) => {
     setUserIdea(idea);
@@ -183,8 +189,40 @@ const BusinessPipelineView: React.FC = () => {
 
         message.success('产品方案已批准，AI研发团队开始构建...');
 
-        // 模拟30分钟的构建过程（这里缩短为10秒演示）
-        setTimeout(() => {
+        // 模拟完整的8节点流水线（后台自动运行）
+        const stages = [
+          { name: '架构设计', duration: 2000 },
+          { name: '详细设计', duration: 2000 },
+          { name: '代码开发', duration: 3000 },
+          { name: '测试用例生成', duration: 1500 },
+          { name: '测试脚本生成', duration: 1500 },
+          { name: '部署', duration: 2000 },
+        ];
+
+        let currentProgress = 0;
+        const totalDuration = stages.reduce((sum, s) => sum + s.duration, 0);
+
+        // 逐个阶段执行
+        stages.reduce((promise, stage) => {
+          return promise.then(() => {
+            setBackendProgress({
+              currentStage: stage.name,
+              percentage: Math.round((currentProgress / totalDuration) * 100),
+            });
+
+            return new Promise<void>((resolve) => {
+              setTimeout(() => {
+                currentProgress += stage.duration;
+                setBackendProgress({
+                  currentStage: stage.name,
+                  percentage: Math.round((currentProgress / totalDuration) * 100),
+                });
+                resolve();
+              }, stage.duration);
+            });
+          });
+        }, Promise.resolve()).then(() => {
+          // 所有阶段完成，Demo交付
           setPipeline((prev) => ({
             ...prev,
             stages: prev.stages.map((s) =>
@@ -206,8 +244,9 @@ const BusinessPipelineView: React.FC = () => {
             ),
           }));
 
+          setBackendProgress({ currentStage: '', percentage: 100 });
           message.success('🎉 Demo构建完成！您的创意已成功转化为产品原型', 10);
-        }, 10000);
+        });
       },
     });
   }, [projectId]);
@@ -307,6 +346,7 @@ const BusinessPipelineView: React.FC = () => {
             key={stage.id}
             stage={stage}
             ideaInput={userIdea}
+            backendProgress={backendProgress}
             onStartResearch={handleStartResearch}
             onEditPRD={handleEditPRD}
             onApprovePRD={handleApprovePRD}

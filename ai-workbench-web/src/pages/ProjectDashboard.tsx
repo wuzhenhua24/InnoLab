@@ -1,17 +1,20 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Input, Button, Row, Col, Typography, Empty } from 'antd';
-import { SearchOutlined, PlusOutlined, FolderOutlined } from '@ant-design/icons';
+import { Input, Button, Row, Col, Typography, Empty, Segmented, Space, Card as AntCard } from 'antd';
+import { SearchOutlined, PlusOutlined, FolderOutlined, CodeOutlined, BulbOutlined } from '@ant-design/icons';
 import ProjectCard from '../components/ProjectCard';
 import NewProjectModal from '../components/NewProjectModal';
 import type { Project, CreateProjectInput } from '../types/project';
 
-const { Title } = Typography;
+const { Title, Paragraph } = Typography;
+
+type WorkbenchMode = '开发者工作台' | '业务工作台';
 
 const ProjectDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [searchText, setSearchText] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [workbenchMode, setWorkbenchMode] = useState<WorkbenchMode>('开发者工作台');
   const [projects, setProjects] = useState<Project[]>([
     {
       id: '1',
@@ -96,18 +99,113 @@ const ProjectDashboard: React.FC = () => {
     };
     setProjects([newProject, ...projects]);
     setIsModalOpen(false);
-    // 跳转到新创建项目的流水线页面
-    navigate(`/projects/${newProject.id}/pipeline`);
+    // 根据模式跳转到不同的页面
+    if (workbenchMode === '业务工作台') {
+      navigate(`/business/${newProject.id}`);
+    } else {
+      navigate(`/projects/${newProject.id}/pipeline`);
+    }
   };
 
   const handleEnterProject = (projectId: string) => {
-    // 跳转到项目的流水线页面
-    navigate(`/projects/${projectId}/pipeline`);
+    // 根据模式跳转到不同的页面
+    if (workbenchMode === '业务工作台') {
+      navigate(`/business/${projectId}`);
+    } else {
+      navigate(`/projects/${projectId}/pipeline`);
+    }
   };
 
   return (
     <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
-      <Title level={3} style={{ marginBottom: '24px' }}>
+      {/* 模式选择器 */}
+      <AntCard style={{ marginBottom: '24px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+        <Space direction="vertical" style={{ width: '100%' }} size="large">
+          <div style={{ textAlign: 'center' }}>
+            <Title level={2} style={{ margin: 0, color: '#fff' }}>
+              AI 研发工作台
+            </Title>
+            <Paragraph style={{ color: 'rgba(255, 255, 255, 0.9)', margin: '8px 0 0 0' }}>
+              选择您的工作模式，开启AI驱动的研发之旅
+            </Paragraph>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <Segmented
+              size="large"
+              value={workbenchMode}
+              onChange={(value) => setWorkbenchMode(value as WorkbenchMode)}
+              options={[
+                {
+                  label: (
+                    <Space>
+                      <CodeOutlined />
+                      <span>开发者工作台</span>
+                    </Space>
+                  ),
+                  value: '开发者工作台',
+                },
+                {
+                  label: (
+                    <Space>
+                      <BulbOutlined />
+                      <span>业务工作台</span>
+                    </Space>
+                  ),
+                  value: '业务工作台',
+                },
+              ]}
+              style={{ background: 'rgba(255, 255, 255, 0.2)', padding: '4px' }}
+            />
+          </div>
+
+          {/* 模式说明 */}
+          <Row gutter={16}>
+            <Col span={12}>
+              <div style={{
+                padding: '16px',
+                background: workbenchMode === '开发者工作台' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.1)',
+                borderRadius: '8px',
+                border: workbenchMode === '开发者工作台' ? '2px solid rgba(255, 255, 255, 0.5)' : '2px solid transparent',
+                transition: 'all 0.3s'
+              }}>
+                <Space>
+                  <CodeOutlined style={{ fontSize: '24px', color: '#fff' }} />
+                  <div>
+                    <div style={{ color: '#fff', fontWeight: 'bold', marginBottom: '4px' }}>开发者工作台</div>
+                    <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '12px' }}>
+                      完整的AI研发流水线（8个节点）<br />
+                      适合技术人员进行项目开发和迭代
+                    </div>
+                  </div>
+                </Space>
+              </div>
+            </Col>
+            <Col span={12}>
+              <div style={{
+                padding: '16px',
+                background: workbenchMode === '业务工作台' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.1)',
+                borderRadius: '8px',
+                border: workbenchMode === '业务工作台' ? '2px solid rgba(255, 255, 255, 0.5)' : '2px solid transparent',
+                transition: 'all 0.3s'
+              }}>
+                <Space>
+                  <BulbOutlined style={{ fontSize: '24px', color: '#fff' }} />
+                  <div>
+                    <div style={{ color: '#fff', fontWeight: 'bold', marginBottom: '4px' }}>业务工作台 (Idea-to-Demo)</div>
+                    <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '12px' }}>
+                      简化的3步流程（调研→定义→交付）<br />
+                      适合业务人员快速验证创意原型
+                    </div>
+                  </div>
+                </Space>
+              </div>
+            </Col>
+          </Row>
+        </Space>
+      </AntCard>
+
+      <Title level={4} style={{ marginBottom: '24px' }}>
         我的项目
       </Title>
 
