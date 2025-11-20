@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Card, Button, Tag, Typography, Space, Alert, Input, List, Progress } from 'antd';
+import React, { useState, useRef, useEffect } from 'react';
+import { Card, Button, Tag, Typography, Space, Alert, Input, List, Progress, Divider } from 'antd';
 import {
   CheckCircleOutlined,
   ClockCircleOutlined,
@@ -20,7 +20,7 @@ const { TextArea } = Input;
 interface BusinessStageCardProps {
   stage: PipelineStage;
   ideaInput?: string; // 节点1的想法输入
-  backendProgress?: { currentStage: string; percentage: number }; // 后台流水线进度
+  backendProgress?: { currentStage: string; percentage: number; logs?: string[] }; // 后台流水线进度
   onStartResearch?: (idea: string) => void; // 节点1：开始调研
   onEditPRD?: (artifact: StageArtifact) => void; // 节点2：编辑PRD
   onApprovePRD?: () => void; // 节点2：批准PRD并开始构建
@@ -37,6 +37,14 @@ const BusinessStageCard: React.FC<BusinessStageCardProps> = ({
   onViewArtifact,
 }) => {
   const [idea, setIdea] = useState('');
+  const logContainerRef = useRef<HTMLDivElement>(null);
+
+  // 自动滚动到日志底部
+  useEffect(() => {
+    if (logContainerRef.current && backendProgress?.logs && backendProgress.logs.length > 0) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+    }
+  }, [backendProgress?.logs]);
 
   // 状态标签配置
   const getStatusTag = () => {
@@ -292,18 +300,70 @@ const BusinessStageCard: React.FC<BusinessStageCardProps> = ({
           />
 
           {backendProgress && (
-            <div style={{ padding: 16, background: '#f0f5ff', borderRadius: 4 }}>
-              <Space direction="vertical" style={{ width: '100%' }} size="small">
-                <div>
-                  <Text strong>后台流水线进度：</Text>
-                  <Text type="secondary" style={{ marginLeft: 8 }}>
-                    {backendProgress.currentStage || '准备中...'}
-                  </Text>
+            <div style={{ marginBottom: 16 }}>
+              <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                {/* 进度条 */}
+                <div style={{ padding: 16, background: '#f0f5ff', borderRadius: 4 }}>
+                  <div style={{ marginBottom: 8 }}>
+                    <Text strong>当前阶段：</Text>
+                    <Text type="secondary" style={{ marginLeft: 8 }}>
+                      {backendProgress.currentStage || '准备中...'}
+                    </Text>
+                  </div>
+                  <Progress
+                    percent={backendProgress.percentage}
+                    status="active"
+                    strokeColor={{
+                      '0%': '#108ee9',
+                      '100%': '#87d068',
+                    }}
+                  />
+                  <div style={{ fontSize: 12, color: '#8c8c8c', marginTop: 4 }}>
+                    流水线阶段：架构设计 → 详细设计 → 代码开发 → 测试用例 → 测试脚本 → 部署
+                  </div>
                 </div>
-                <Progress percent={backendProgress.percentage} status="active" />
-                <div style={{ fontSize: 12, color: '#8c8c8c' }}>
-                  正在执行：架构设计 → 详细设计 → 代码开发 → 测试用例 → 测试脚本 → 部署
-                </div>
+
+                {/* 构建日志 */}
+                {backendProgress.logs && backendProgress.logs.length > 0 && (
+                  <div>
+                    <Divider orientation="left" style={{ margin: '8px 0' }}>
+                      <Text strong style={{ fontSize: 13 }}>构建日志</Text>
+                    </Divider>
+                    <div
+                      ref={logContainerRef}
+                      style={{
+                        background: '#1e1e1e',
+                        color: '#d4d4d4',
+                        padding: '12px 16px',
+                        borderRadius: 4,
+                        fontFamily: 'Monaco, Consolas, "Courier New", monospace',
+                        fontSize: 12,
+                        maxHeight: 300,
+                        overflowY: 'auto',
+                        lineHeight: 1.6,
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                      }}
+                    >
+                      {backendProgress.logs.map((log, index) => (
+                        <div
+                          key={index}
+                          style={{
+                            color: log.includes('✓') ? '#4ec9b0' :
+                                   log.includes('🚀') ? '#569cd6' :
+                                   log.includes('📦') ? '#dcdcaa' :
+                                   log.includes('🎉') ? '#4ec9b0' :
+                                   log.includes('正在') ? '#ce9178' :
+                                   '#d4d4d4',
+                            marginBottom: log.startsWith('\n') ? 8 : 0,
+                          }}
+                        >
+                          {log}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </Space>
             </div>
           )}
