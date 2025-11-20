@@ -179,11 +179,15 @@ const BusinessPipelineView: React.FC = () => {
   // 节点2：批准PRD并开始构建
   const handleApprovePRD = useCallback(() => {
     console.log('handleApprovePRD called');
-    Modal.confirm({
+    console.log('Creating Modal.confirm...');
+    const modal = Modal.confirm({
       title: '确认批准并开始构建？',
       content: '批准后，AI研发团队将开始全自动构建（架构→代码→测试→部署），预计需要30分钟。期间无需人工介入。',
       okText: '确认批准',
       cancelText: '取消',
+      onCancel: () => {
+        console.log('Modal cancelled by user');
+      },
       onOk: () => {
         console.log('Modal confirmed, starting build process');
         // 节点2标记为完成
@@ -363,6 +367,7 @@ const BusinessPipelineView: React.FC = () => {
         }, 500);
       },
     });
+    console.log('Modal.confirm created, modal instance:', modal);
   }, [projectId, addBuildLog]);
 
   // 查看产出物
