@@ -171,6 +171,7 @@ const BusinessStageCard: React.FC<BusinessStageCardProps> = ({
 
   // 渲染节点2：产品定义（关键审核点）
   const renderProductReview = () => {
+    console.log('renderProductReview, stage.status:', stage.status);
     if (stage.status === StageStatus.PENDING) {
       return (
         <Alert
@@ -195,6 +196,7 @@ const BusinessStageCard: React.FC<BusinessStageCardProps> = ({
     }
 
     if (stage.status === StageStatus.WAITING_REVIEW) {
+      console.log('Rendering WAITING_REVIEW state, onApprovePRD:', onApprovePRD);
       return (
         <div>
           <Alert
@@ -243,7 +245,10 @@ const BusinessStageCard: React.FC<BusinessStageCardProps> = ({
             type="primary"
             size="large"
             icon={<CheckOutlined />}
-            onClick={onApprovePRD}
+            onClick={() => {
+              console.log('Button clicked!');
+              onApprovePRD?.();
+            }}
             style={{ width: '100%' }}
           >
             👍 批准产品方案并开始构建

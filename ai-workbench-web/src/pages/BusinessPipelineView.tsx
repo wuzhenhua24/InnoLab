@@ -116,6 +116,7 @@ const BusinessPipelineView: React.FC = () => {
 
       // 再过3秒生成PRD
       setTimeout(() => {
+        console.log('Setting stage-2 to WAITING_REVIEW');
         setPipeline((prev) => ({
           ...prev,
           stages: prev.stages.map((s) =>
@@ -137,6 +138,7 @@ const BusinessPipelineView: React.FC = () => {
           ),
         }));
 
+        console.log('Stage-2 set to WAITING_REVIEW');
         message.warning('产品方案已生成，请审核并批准', 5);
       }, 3000);
     }, 3000);
