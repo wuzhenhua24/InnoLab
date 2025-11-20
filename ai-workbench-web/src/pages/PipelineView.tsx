@@ -1,10 +1,14 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Typography, Button, Space, Divider, Modal, message } from 'antd';
 import { ThunderboltOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import StageCard from '../components/StageCard';
-import type { Pipeline, LogEntry, ExecutionMetrics } from '../types/pipeline';
-import { StageStatus, StageType, LogLevel } from '../types/pipeline';
+import WebIDE from '../components/WebIDE';
+import DeployConfigModal from '../components/DeployConfigModal';
+import DeploymentStageCard from '../components/DeploymentStageCard';
+import type { Pipeline, LogEntry, ExecutionMetrics, StageArtifact, IDEFile } from '../types/pipeline';
+import { StageStatus, StageType, LogLevel, ArtifactType } from '../types/pipeline';
+import { loadArtifactContent } from '../utils/artifactLoader';
 
 const { Title, Text } = Typography;
 
@@ -32,6 +36,8 @@ const PipelineView: React.FC = () => {
           {
             name: 'PROJECT_ANALYSIS.md',
             url: '/artifacts/project-analysis.md',
+            type: ArtifactType.MARKDOWN,
+            content: '', // 将在useEffect中加载
             createdAt: new Date(Date.now() - 3600000).toISOString(),
           },
         ],
@@ -50,6 +56,8 @@ const PipelineView: React.FC = () => {
           {
             name: '需求文档.md',
             url: '/artifacts/requirement-doc.md',
+            type: ArtifactType.MARKDOWN,
+            content: '', // 将在useEffect中加载
             createdAt: new Date(Date.now() - 1800000).toISOString(),
           },
         ],
@@ -109,8 +117,59 @@ const PipelineView: React.FC = () => {
         order: 7,
         artifacts: [],
       },
+      {
+        id: 'stage-8',
+        type: StageType.DEPLOYMENT,
+        name: '部署',
+        description: '将代码部署到目标环境（Dev/Staging/Production）',
+        status: StageStatus.PENDING,
+        order: 8,
+        artifacts: [],
+      },
     ],
   });
+
+  // IDE相关状态
+  const [ideVisible, setIdeVisible] = useState(false);
+  const [ideFiles, setIdeFiles] = useState<IDEFile[]>([]);
+  const [ideTitle, setIdeTitle] = useState('');
+  const [currentEditingStageId, setCurrentEditingStageId] = useState<string | null>(null);
+
+  // 部署相关状态
+  const [deployConfigVisible, setDeployConfigVisible] = useState(false);
+  const [deploymentEnvironment, setDeploymentEnvironment] = useState<'test' | 'staging' | 'production'>('test');
+  const [deploymentLogs, setDeploymentLogs] = useState<Array<{ timestamp: string; message: string; level: 'info' | 'success' | 'error' | 'warning' }>>([]);
+  const [deploymentProgress, setDeploymentProgress] = useState(0);
+
+  // 加载artifact文件内容
+  useEffect(() => {
+    const loadArtifactContents = async () => {
+      const updatedStages = await Promise.all(
+        pipeline.stages.map(async (stage) => {
+          if (stage.artifacts.length > 0) {
+            const updatedArtifacts = await Promise.all(
+              stage.artifacts.map(async (artifact) => {
+                if (artifact.type === ArtifactType.MARKDOWN && !artifact.content) {
+                  const content = await loadArtifactContent(artifact.url);
+                  return { ...artifact, content };
+                }
+                return artifact;
+              })
+            );
+            return { ...stage, artifacts: updatedArtifacts };
+          }
+          return stage;
+        })
+      );
+
+      setPipeline((prev) => ({
+        ...prev,
+        stages: updatedStages,
+      }));
+    };
+
+    loadArtifactContents();
+  }, []); // 只在组件挂载时执行一次
 
   // Mock: 生成模拟日志
   const generateMockLogs = (stageName: string): LogEntry[] => {
@@ -235,6 +294,12 @@ const PipelineView: React.FC = () => {
     const stage = pipeline.stages.find((s) => s.id === stageId);
     if (!stage) return;
 
+    // 如果是部署节点，弹出配置对话框
+    if (stage.type === StageType.DEPLOYMENT) {
+      setDeployConfigVisible(true);
+      return;
+    }
+
     // 设置阶段为运行中并自动展开
     setPipeline((prev) => ({
       ...prev,
@@ -258,22 +323,54 @@ const PipelineView: React.FC = () => {
       // 日志推送完成后，更新状态为等待审核，并添加执行指标
       setPipeline((prev) => ({
         ...prev,
-        stages: prev.stages.map((s) =>
-          s.id === stageId
-            ? {
-                ...s,
-                status: StageStatus.WAITING_REVIEW,
-                metrics: generateMockMetrics(),
-                artifacts: [
-                  {
-                    name: `${s.name}_产出.md`,
-                    url: `/artifacts/${s.type}.md`,
-                    createdAt: new Date().toISOString(),
-                  },
-                ],
-              }
-            : s
-        ),
+        stages: prev.stages.map((s) => {
+          if (s.id !== stageId) return s;
+
+          // 根据阶段类型决定产出物类型和文件名
+          const isCodeStage = s.type === StageType.CODE_DEV || s.type === StageType.TEST_SCRIPT;
+          const artifactType = isCodeStage ? ArtifactType.CODE : ArtifactType.MARKDOWN;
+          const fileExtension = isCodeStage ? 'ts' : 'md';
+          const fileName = `${s.type}.${fileExtension}`;
+          const artifactUrl = `/artifacts/${fileName}`;
+
+          // 异步加载文件内容
+          const loadContentAsync = async () => {
+            const content = await loadArtifactContent(artifactUrl);
+            setPipeline((prev) => ({
+              ...prev,
+              stages: prev.stages.map((stage) =>
+                stage.id === s.id
+                  ? {
+                      ...stage,
+                      artifacts: stage.artifacts.map((art) =>
+                        art.url === artifactUrl ? { ...art, content } : art
+                      ),
+                    }
+                  : stage
+              ),
+            }));
+          };
+
+          // 立即开始加载内容
+          loadContentAsync();
+
+          return {
+            ...s,
+            status: StageStatus.WAITING_REVIEW,
+            metrics: generateMockMetrics(),
+            artifacts: [
+              {
+                name: `${s.name}_产出.${fileExtension}`,
+                url: artifactUrl,
+                type: artifactType,
+                content: '', // 初始为空，将异步加载
+                filePath: isCodeStage ? `/src/generated/${fileName}` : undefined,
+                language: isCodeStage ? 'typescript' : undefined,
+                createdAt: new Date().toISOString(),
+              },
+            ],
+          };
+        }),
       }));
       message.success(`${stage.name} 执行完成，等待审核`);
     });
@@ -343,23 +440,54 @@ const PipelineView: React.FC = () => {
               // 日志推送完成后直接标记为完成（一键执行无需审核），并添加执行指标
               setPipeline((prev) => ({
                 ...prev,
-                stages: prev.stages.map((s) =>
-                  s.id === stage.id
-                    ? {
-                        ...s,
-                        status: StageStatus.COMPLETED,
-                        completedAt: new Date().toISOString(),
-                        metrics: generateMockMetrics(),
-                        artifacts: [
-                          {
-                            name: `${s.name}_产出.md`,
-                            url: `/artifacts/${s.type}.md`,
-                            createdAt: new Date().toISOString(),
-                          },
-                        ],
-                      }
-                    : s
-                ),
+                stages: prev.stages.map((s) => {
+                  if (s.id !== stage.id) return s;
+
+                  const isCodeStage = s.type === StageType.CODE_DEV || s.type === StageType.TEST_SCRIPT;
+                  const artifactType = isCodeStage ? ArtifactType.CODE : ArtifactType.MARKDOWN;
+                  const fileExtension = isCodeStage ? 'ts' : 'md';
+                  const fileName = `${s.type}.${fileExtension}`;
+                  const artifactUrl = `/artifacts/${fileName}`;
+
+                  // 异步加载文件内容
+                  const loadContentAsync = async () => {
+                    const content = await loadArtifactContent(artifactUrl);
+                    setPipeline((prev) => ({
+                      ...prev,
+                      stages: prev.stages.map((stage) =>
+                        stage.id === s.id
+                          ? {
+                              ...stage,
+                              artifacts: stage.artifacts.map((art) =>
+                                art.url === artifactUrl ? { ...art, content } : art
+                              ),
+                            }
+                          : stage
+                      ),
+                    }));
+                  };
+
+                  // 立即开始加载内容
+                  loadContentAsync();
+
+                  return {
+                    ...s,
+                    status: StageStatus.COMPLETED,
+                    completedAt: new Date().toISOString(),
+                    metrics: generateMockMetrics(),
+                    artifacts: [
+                      {
+                        name: `${s.name}_产出.${fileExtension}`,
+                        url: artifactUrl,
+                        type: artifactType,
+                        content: '', // 初始为空，将异步加载
+                        filePath: isCodeStage ? `/src/generated/${fileName}` : undefined,
+                        language: isCodeStage ? 'typescript' : undefined,
+                        createdAt: new Date().toISOString(),
+                      },
+                    ],
+                  };
+                }),
               }));
 
               // 最后一个阶段完成时结束
@@ -377,11 +505,286 @@ const PipelineView: React.FC = () => {
     });
   }, [pipeline.stages]);
 
-  // 查看产出物
-  const handleViewArtifact = useCallback((url: string) => {
-    message.info(`查看产出物: ${url}`);
-    // TODO: 实现产出物查看功能
+  // 编辑产出物
+  const handleEditArtifact = useCallback((stageId: string, artifact: StageArtifact, newContent: string) => {
+    setPipeline((prev) => ({
+      ...prev,
+      stages: prev.stages.map((stage) => {
+        if (stage.id !== stageId) return stage;
+
+        return {
+          ...stage,
+          artifacts: stage.artifacts.map((art) =>
+            art.url === artifact.url
+              ? { ...art, content: newContent }
+              : art
+          ),
+        };
+      }),
+    }));
+    message.success('产出物已保存');
   }, []);
+
+  // 在IDE中打开代码
+  const handleOpenInIDE = useCallback(async (stageId: string) => {
+    const stage = pipeline.stages.find((s) => s.id === stageId);
+    if (!stage) return;
+
+    const codeArtifacts = stage.artifacts.filter((a) => a.type === ArtifactType.CODE);
+    if (codeArtifacts.length === 0) {
+      message.warning('该阶段没有代码产出物');
+      return;
+    }
+
+    // 将artifacts转换为IDE文件格式
+    const files: IDEFile[] = await Promise.all(
+      codeArtifacts.map(async (artifact, index) => {
+        // 如果没有内容，尝试加载
+        let content = artifact.content || '';
+        if (!content && artifact.url) {
+          content = await loadArtifactContent(artifact.url);
+        }
+
+        // 从文件扩展名推断语言
+        const getLanguage = (fileName: string): string => {
+          const ext = fileName.split('.').pop()?.toLowerCase();
+          const languageMap: Record<string, string> = {
+            ts: 'typescript',
+            tsx: 'typescript',
+            js: 'javascript',
+            jsx: 'javascript',
+            py: 'python',
+            java: 'java',
+            go: 'go',
+            rs: 'rust',
+            cpp: 'cpp',
+            c: 'c',
+            cs: 'csharp',
+            json: 'json',
+            md: 'markdown',
+          };
+          return languageMap[ext || ''] || 'plaintext';
+        };
+
+        return {
+          id: `${stageId}-file-${index}`,
+          name: artifact.name,
+          path: artifact.filePath || `/generated/${artifact.name}`,
+          content,
+          language: artifact.language || getLanguage(artifact.name),
+          isModified: false,
+        };
+      })
+    );
+
+    setIdeFiles(files);
+    setIdeTitle(`${stage.name} - 代码编辑器`);
+    setCurrentEditingStageId(stageId);
+    setIdeVisible(true);
+  }, [pipeline.stages]);
+
+  // 保存IDE中的文件修改
+  const handleSaveIDEFiles = useCallback((updatedFiles: IDEFile[]) => {
+    if (!currentEditingStageId) return;
+
+    setPipeline((prev) => ({
+      ...prev,
+      stages: prev.stages.map((stage) => {
+        if (stage.id !== currentEditingStageId) return stage;
+
+        return {
+          ...stage,
+          artifacts: stage.artifacts.map((artifact) => {
+            // 找到对应的更新文件
+            const updatedFile = updatedFiles.find(
+              (f) => f.name === artifact.name || f.path === artifact.filePath
+            );
+
+            if (updatedFile && artifact.type === ArtifactType.CODE) {
+              return {
+                ...artifact,
+                content: updatedFile.content,
+              };
+            }
+
+            return artifact;
+          }),
+        };
+      }),
+    }));
+
+    message.success('代码已保存到流水线');
+  }, [currentEditingStageId]);
+
+  // 关闭IDE
+  const handleCloseIDE = useCallback(() => {
+    setIdeVisible(false);
+    setIdeFiles([]);
+    setIdeTitle('');
+    setCurrentEditingStageId(null);
+  }, []);
+
+  // Git提交和推送
+  const handleGitCommit = useCallback(async (commitMessage: string) => {
+    // 这里是Git操作的Mock实现
+    // 实际项目中应该调用后端API执行真实的Git命令
+    return new Promise<void>((resolve, reject) => {
+      // 模拟Git操作延迟
+      setTimeout(() => {
+        try {
+          console.log('执行Git操作:');
+          console.log('1. git add .');
+          console.log('2. git commit -m "' + commitMessage + '"');
+          console.log('3. git push');
+
+          // 模拟成功
+          resolve();
+
+          // 如果需要模拟失败，可以使用：
+          // reject('推送被拒绝，请先拉取远程更改');
+        } catch (error) {
+          reject(error);
+        }
+      }, 2000); // 模拟2秒的网络延迟
+    });
+  }, []);
+
+  // 处理部署配置确认
+  const handleDeployConfirm = useCallback(async (config: { environment: 'test' | 'staging' | 'production'; mode: 'auto' | 'manual'; commitMessage: string }) => {
+    setDeployConfigVisible(false);
+    setDeploymentEnvironment(config.environment);
+    setDeploymentLogs([]);
+    setDeploymentProgress(0);
+
+    // 找到部署节点
+    const deploymentStage = pipeline.stages.find((s) => s.type === StageType.DEPLOYMENT);
+    if (!deploymentStage) return;
+
+    // 设置部署节点为运行中
+    setPipeline((prev) => ({
+      ...prev,
+      stages: prev.stages.map((s) =>
+        s.type === StageType.DEPLOYMENT
+          ? {
+              ...s,
+              status: StageStatus.RUNNING,
+              startedAt: new Date().toISOString(),
+              expanded: true,
+              logs: [],
+              metrics: undefined,
+            }
+          : s
+      ),
+    }));
+
+    // Mock部署流程
+    const addLog = (message: string, level: 'info' | 'success' | 'error' | 'warning' = 'info') => {
+      const timestamp = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+      setDeploymentLogs((prev) => [...prev, { timestamp, message, level }]);
+    };
+
+    try {
+      // 步骤1: Git提交（如果是auto模式）
+      if (config.mode === 'auto') {
+        addLog(`📝 提交代码到Git仓库...`);
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        addLog(`✓ Git提交成功: ${config.commitMessage}`, 'success');
+        setDeploymentProgress(10);
+      }
+
+      // 步骤2: 触发CI/CD
+      addLog(`🚀 触发${config.environment}环境的CI/CD流程...`);
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      addLog(`✓ CI/CD任务已创建 (Job ID: ${Math.random().toString(36).substring(7)})`, 'success');
+      setDeploymentProgress(20);
+
+      // 步骤3: 环境检查
+      addLog(`🔍 检查${config.environment}环境状态...`);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      addLog(`✓ 环境检查通过`, 'success');
+      setDeploymentProgress(30);
+
+      // 步骤4: 代码构建
+      addLog(`🔨 开始构建应用...`);
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      addLog(`  - 安装依赖包...`);
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      addLog(`  - 执行TypeScript编译...`);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      addLog(`  - 打包生产环境代码...`);
+      await new Promise((resolve) => setTimeout(resolve, 1800));
+      addLog(`✓ 构建完成 (build-${Date.now()}.tar.gz)`, 'success');
+      setDeploymentProgress(60);
+
+      // 步骤5: 部署到环境
+      addLog(`📦 部署到${config.environment}环境...`);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      addLog(`  - 上传部署包...`);
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      addLog(`  - 停止旧版本服务...`);
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      addLog(`  - 启动新版本服务...`);
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      addLog(`  - 配置负载均衡...`);
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      addLog(`✓ 部署成功`, 'success');
+      setDeploymentProgress(80);
+
+      // 步骤6: 健康检查
+      addLog(`💊 执行健康检查...`);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      addLog(`  - 端口检查: ✓`);
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      addLog(`  - HTTP健康检查: ✓`);
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      addLog(`  - API端点验证: ✓`);
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      addLog(`✓ 健康检查通过`, 'success');
+      setDeploymentProgress(100);
+
+      // 部署成功
+      const envDomain = {
+        test: 'test.example.com',
+        staging: 'staging.example.com',
+        production: 'www.example.com',
+      };
+      addLog(`🎉 部署成功！访问地址: https://${envDomain[config.environment]}`, 'success');
+
+      // 更新部署节点状态为完成
+      setPipeline((prev) => ({
+        ...prev,
+        stages: prev.stages.map((s) =>
+          s.type === StageType.DEPLOYMENT
+            ? {
+                ...s,
+                status: StageStatus.COMPLETED,
+                completedAt: new Date().toISOString(),
+                metrics: {
+                  duration: 15,
+                  cost: 0.02,
+                },
+              }
+            : s
+        ),
+      }));
+
+      message.success(`成功部署到${config.environment}环境！`);
+    } catch (error) {
+      addLog(`❌ 部署失败: ${error}`, 'error');
+      setPipeline((prev) => ({
+        ...prev,
+        stages: prev.stages.map((s) =>
+          s.type === StageType.DEPLOYMENT
+            ? {
+                ...s,
+                status: StageStatus.FAILED,
+              }
+            : s
+        ),
+      }));
+      message.error('部署失败，请重试');
+    }
+  }, [pipeline.stages]);
 
   // 渲染流水线可视化
   const renderPipelineVisualization = () => {
@@ -489,16 +892,62 @@ const PipelineView: React.FC = () => {
 
       {/* 阶段列表 */}
       <div>
-        {pipeline.stages.map((stage) => (
-          <StageCard
-            key={stage.id}
-            stage={stage}
-            onRun={handleRunStage}
-            onApprove={handleApproveStage}
-            onViewArtifact={handleViewArtifact}
-          />
-        ))}
+        {pipeline.stages.map((stage) =>
+          stage.type === StageType.DEPLOYMENT ? (
+            <DeploymentStageCard
+              key={stage.id}
+              stageName={stage.name}
+              stageOrder={stage.order}
+              environment={deploymentEnvironment}
+              status={
+                stage.status === StageStatus.PENDING
+                  ? 'pending'
+                  : stage.status === StageStatus.RUNNING
+                  ? 'deploying'
+                  : stage.status === StageStatus.COMPLETED
+                  ? 'success'
+                  : 'failed'
+              }
+              logs={deploymentLogs}
+              deployUrl={
+                stage.status === StageStatus.COMPLETED
+                  ? `https://jenkins.example.com/job/deploy-${deploymentEnvironment}/123`
+                  : undefined
+              }
+              progress={deploymentProgress}
+              onDeploy={() => handleRunStage(stage.id)}
+            />
+          ) : (
+            <StageCard
+              key={stage.id}
+              stage={stage}
+              onRun={handleRunStage}
+              onApprove={handleApproveStage}
+              onEditArtifact={handleEditArtifact}
+              onOpenInIDE={handleOpenInIDE}
+            />
+          )
+        )}
       </div>
+
+      {/* 部署配置弹窗 */}
+      <DeployConfigModal
+        visible={deployConfigVisible}
+        projectName={pipeline.projectName}
+        onConfirm={handleDeployConfirm}
+        onCancel={() => setDeployConfigVisible(false)}
+      />
+
+      {/* Web IDE */}
+      <WebIDE
+        visible={ideVisible}
+        title={ideTitle}
+        files={ideFiles}
+        projectName={pipeline.projectName}
+        onSave={handleSaveIDEFiles}
+        onCommit={handleGitCommit}
+        onClose={handleCloseIDE}
+      />
     </div>
   );
 };

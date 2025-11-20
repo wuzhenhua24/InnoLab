@@ -101,13 +101,13 @@ const LogViewer: React.FC<LogViewerProps> = ({
           </Text>
           <Space size="large">
             {metrics.duration !== undefined && (
-              <Text type="secondary">
-                耗时: <Text strong>{metrics.duration}s</Text>
+              <Text style={{ color: '#d9d9d9' }}>
+                耗时: <Text strong style={{ color: '#fff' }}>{metrics.duration}s</Text>
               </Text>
             )}
             {metrics.tokenUsage !== undefined && (
-              <Text type="secondary">
-                Token: <Text strong>{metrics.tokenUsage.toLocaleString()}</Text>
+              <Text style={{ color: '#d9d9d9' }}>
+                Token: <Text strong style={{ color: '#fff' }}>{metrics.tokenUsage.toLocaleString()}</Text>
               </Text>
             )}
           </Space>

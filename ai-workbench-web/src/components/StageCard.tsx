@@ -10,10 +10,13 @@ import {
   EyeOutlined,
   DownOutlined,
   UpOutlined,
+  EditOutlined,
+  CodeOutlined,
 } from '@ant-design/icons';
-import type { PipelineStage } from '../types/pipeline';
-import { StageStatus } from '../types/pipeline';
+import type { PipelineStage, StageArtifact } from '../types/pipeline';
+import { StageStatus, StageType, ArtifactType } from '../types/pipeline';
 import LogViewer from './LogViewer';
+import MarkdownEditor from './MarkdownEditor';
 import dayjs from 'dayjs';
 
 const { Text, Title } = Typography;
@@ -22,7 +25,8 @@ interface StageCardProps {
   stage: PipelineStage;
   onRun?: (stageId: string) => void;
   onApprove?: (stageId: string) => void;
-  onViewArtifact?: (artifactUrl: string) => void;
+  onEditArtifact?: (stageId: string, artifact: StageArtifact, newContent: string) => void;
+  onOpenInIDE?: (stageId: string) => void;
   onToggleExpand?: (stageId: string) => void;
 }
 
@@ -30,16 +34,42 @@ const StageCard: React.FC<StageCardProps> = ({
   stage,
   onRun,
   onApprove,
-  onViewArtifact,
+  onEditArtifact,
+  onOpenInIDE,
   onToggleExpand,
 }) => {
   const [expanded, setExpanded] = useState(stage.expanded || false);
+  const [editingArtifact, setEditingArtifact] = useState<StageArtifact | null>(null);
 
   const handleToggleExpand = () => {
     const newExpanded = !expanded;
     setExpanded(newExpanded);
     onToggleExpand?.(stage.id);
   };
+
+  // 处理编辑产出物
+  const handleEditArtifact = (artifact: StageArtifact) => {
+    setEditingArtifact(artifact);
+  };
+
+  // 保存编辑后的产出物
+  const handleSaveArtifact = (newContent: string) => {
+    if (editingArtifact) {
+      onEditArtifact?.(stage.id, editingArtifact, newContent);
+      setEditingArtifact(null);
+    }
+  };
+
+  // 取消编辑
+  const handleCancelEdit = () => {
+    setEditingArtifact(null);
+  };
+
+  // 判断是否为代码节点
+  const isCodeStage = () => {
+    return stage.type === StageType.CODE_DEV || stage.type === StageType.TEST_SCRIPT;
+  };
+
   // 状态标签配置
   const getStatusTag = () => {
     const statusConfig = {
@@ -151,19 +181,28 @@ const StageCard: React.FC<StageCardProps> = ({
               dataSource={stage.artifacts}
               renderItem={(artifact) => (
                 <List.Item
-                  actions={[
-                    <Button
-                      type="link"
-                      size="small"
-                      icon={<FileTextOutlined />}
-                      onClick={() => onViewArtifact?.(artifact.url)}
-                    >
-                      查看
-                    </Button>,
-                  ]}
+                  actions={
+                    // 只为Markdown类型的产出物显示编辑按钮
+                    artifact.type === ArtifactType.MARKDOWN
+                      ? [
+                          <Button
+                            type="link"
+                            size="small"
+                            icon={<EditOutlined />}
+                            onClick={() => handleEditArtifact(artifact)}
+                          >
+                            编辑
+                          </Button>,
+                        ]
+                      : []
+                  }
                 >
                   <Space>
-                    <FileTextOutlined />
+                    {artifact.type === ArtifactType.MARKDOWN ? (
+                      <FileTextOutlined />
+                    ) : (
+                      <CodeOutlined />
+                    )}
                     <Text>{artifact.name}</Text>
                     <Text type="secondary" style={{ fontSize: '12px' }}>
                       {dayjs(artifact.createdAt).format('YYYY-MM-DD HH:mm')}
@@ -173,6 +212,18 @@ const StageCard: React.FC<StageCardProps> = ({
               )}
             />
           </div>
+        )}
+
+        {/* 代码节点的IDE编辑按钮 */}
+        {isCodeStage() && stage.status === StageStatus.WAITING_REVIEW && stage.artifacts.length > 0 && (
+          <Button
+            type="primary"
+            icon={<CodeOutlined />}
+            onClick={() => onOpenInIDE?.(stage.id)}
+            style={{ marginTop: '8px' }}
+          >
+            在IDE中审阅并编辑
+          </Button>
         )}
 
         {/* 执行日志 */}
@@ -213,6 +264,17 @@ const StageCard: React.FC<StageCardProps> = ({
           </Text>
         )}
       </Space>
+
+      {/* Markdown编辑器 */}
+      {editingArtifact && (
+        <MarkdownEditor
+          visible={true}
+          title={editingArtifact.name}
+          initialContent={editingArtifact.content || ''}
+          onSave={handleSaveArtifact}
+          onCancel={handleCancelEdit}
+        />
+      )}
     </Card>
   );
 };

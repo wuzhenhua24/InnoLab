@@ -11,11 +11,15 @@
   },
   "dependencies": {
     "@ant-design/icons": "^6.1.0",
+    "@monaco-editor/react": "^4.7.0",
     "antd": "^5.29.0",
     "dayjs": "^1.11.19",
+    "jszip": "^3.10.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-router-dom": "^7.9.6"
+    "react-markdown": "^10.1.0",
+    "react-router-dom": "^7.9.6",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

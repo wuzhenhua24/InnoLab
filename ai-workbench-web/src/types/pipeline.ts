@@ -27,9 +27,20 @@ export const StageType = {
   CODE_DEV: 'code_dev',                      // 5: 开发代码
   TEST_CASE: 'test_case',                    // 6: 测试用例
   TEST_SCRIPT: 'test_script',                // 7: 测试脚本
+  DEPLOYMENT: 'deployment',                  // 8: 部署
 } as const;
 
 export type StageType = typeof StageType[keyof typeof StageType];
+
+/**
+ * 产出物类型
+ */
+export const ArtifactType = {
+  MARKDOWN: 'markdown',  // Markdown文档（PRD、架构设计等）
+  CODE: 'code',          // 代码文件
+} as const;
+
+export type ArtifactType = typeof ArtifactType[keyof typeof ArtifactType];
 
 /**
  * 阶段产出物
@@ -37,7 +48,23 @@ export type StageType = typeof StageType[keyof typeof StageType];
 export interface StageArtifact {
   name: string;
   url: string;
+  type: ArtifactType;     // 产出物类型
+  content?: string;       // 产出物内容（用于编辑）
+  filePath?: string;      // 文件路径（用于代码类型）
+  language?: string;      // 代码语言（typescript, javascript, python等）
   createdAt: string;
+}
+
+/**
+ * IDE文件结构
+ */
+export interface IDEFile {
+  id: string;
+  name: string;
+  path: string;
+  content: string;
+  language: string;
+  isModified: boolean;
 }
 
 /**
