@@ -167,6 +167,7 @@ const BusinessPipelineView: React.FC = () => {
 
   // 添加构建日志的辅助函数
   const addBuildLog = useCallback((log: string) => {
+    console.log('addBuildLog:', log);
     setBackendProgress((prev) => ({
       ...prev,
       logs: [...prev.logs, `[${new Date().toLocaleTimeString()}] ${log}`],
@@ -175,12 +176,14 @@ const BusinessPipelineView: React.FC = () => {
 
   // 节点2：批准PRD并开始构建
   const handleApprovePRD = useCallback(() => {
+    console.log('handleApprovePRD called');
     Modal.confirm({
       title: '确认批准并开始构建？',
       content: '批准后，AI研发团队将开始全自动构建（架构→代码→测试→部署），预计需要30分钟。期间无需人工介入。',
       okText: '确认批准',
       cancelText: '取消',
       onOk: () => {
+        console.log('Modal confirmed, starting build process');
         // 节点2标记为完成
         setPipeline((prev) => ({
           ...prev,
@@ -285,8 +288,10 @@ const BusinessPipelineView: React.FC = () => {
 
         // 逐个阶段执行
         setTimeout(() => {
+          console.log('Starting build stages...');
           stages.reduce((promise, stage, stageIndex) => {
             return promise.then(() => {
+              console.log(`Starting stage ${stageIndex + 1}: ${stage.name}`);
               // 阶段开始
               addBuildLog(`\n📦 [${stageIndex + 1}/${stages.length}] ${stage.name}...`);
 
@@ -297,19 +302,17 @@ const BusinessPipelineView: React.FC = () => {
               }));
 
               // 逐条输出日志
-              const logInterval = stage.duration / stage.logs.length;
-              let logIndex = 0;
+              const logInterval = stage.duration / (stage.logs.length + 1); // +1 to finish before stage completes
 
               return new Promise<void>((resolve) => {
-                const logTimer = setInterval(() => {
-                  if (logIndex < stage.logs.length) {
-                    addBuildLog(stage.logs[logIndex]);
-                    logIndex++;
-                  } else {
-                    clearInterval(logTimer);
-                  }
-                }, logInterval);
+                // 输出所有日志
+                stage.logs.forEach((log, index) => {
+                  setTimeout(() => {
+                    addBuildLog(log);
+                  }, logInterval * (index + 1));
+                });
 
+                // 在阶段完成时 resolve
                 setTimeout(() => {
                   currentProgress += stage.duration;
                   setBackendProgress((prev) => ({
@@ -317,6 +320,7 @@ const BusinessPipelineView: React.FC = () => {
                     currentStage: stage.name,
                     percentage: Math.round((currentProgress / totalDuration) * 100),
                   }));
+                  console.log(`Stage ${stageIndex + 1} completed`);
                   resolve();
                 }, stage.duration);
               });
