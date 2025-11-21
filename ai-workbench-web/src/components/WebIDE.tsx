@@ -9,18 +9,11 @@ import {
   DownloadOutlined,
   RocketOutlined,
 } from '@ant-design/icons';
-import Editor, { loader } from '@monaco-editor/react';
+import Editor from '@monaco-editor/react';
 import GitCommitModal from './GitCommitModal';
 import DeployModal from './DeployModal';
 import { exportFilesToZip } from '../utils/fileExporter';
 import type { IDEFile } from '../types/pipeline';
-
-// 配置Monaco Editor使用CDN，避免本地打包问题
-loader.config({
-  paths: {
-    vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.50.0/min/vs'
-  }
-});
 
 const { Text } = Typography;
 
