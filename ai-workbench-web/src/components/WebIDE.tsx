@@ -15,6 +15,40 @@ import DeployModal from './DeployModal';
 import { exportFilesToZip } from '../utils/fileExporter';
 import type { IDEFile } from '../types/pipeline';
 
+// 添加Monaco Editor加载错误的详细日志
+if (typeof window !== 'undefined') {
+  // 监听Monaco Editor的加载错误
+  window.addEventListener('error', (event) => {
+    if (event.filename && event.filename.includes('monacoeditorwork')) {
+      console.error('❌ Monaco Worker加载失败:', {
+        filename: event.filename,
+        message: event.message,
+        lineno: event.lineno,
+        colno: event.colno,
+        error: event.error
+      });
+
+      // 尝试解析具体是哪个worker文件失败了
+      const workerType = event.filename.match(/(\w+)\.worker/)?.[1] || 'unknown';
+      console.error(`❌ 失败的Worker类型: ${workerType}`);
+      console.error(`❌ 完整URL: ${event.filename}`);
+      console.error(`❌ 当前页面URL: ${window.location.href}`);
+      console.error(`❌ Base路径: ${window.location.origin}${window.location.pathname}`);
+    }
+  }, true);
+
+  // 检查MonacoEnvironment配置
+  console.log('🔍 检查Monaco Environment配置:', (window as any).MonacoEnvironment);
+
+  // 输出当前环境信息
+  console.log('🌍 当前环境信息:', {
+    url: window.location.href,
+    origin: window.location.origin,
+    pathname: window.location.pathname,
+    baseURI: document.baseURI
+  });
+}
+
 const { Text } = Typography;
 
 interface WebIDEProps {
