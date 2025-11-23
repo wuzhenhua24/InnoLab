@@ -9,77 +9,18 @@ import {
   DownloadOutlined,
   RocketOutlined,
 } from '@ant-design/icons';
-import Editor from '@monaco-editor/react';
+import Editor, { loader } from '@monaco-editor/react';
 import GitCommitModal from './GitCommitModal';
 import DeployModal from './DeployModal';
 import { exportFilesToZip } from '../utils/fileExporter';
 import type { IDEFile } from '../types/pipeline';
+import * as monaco from 'monaco-editor';
 
-// 配置Monaco Editor的Worker加载
-// 使用绝对路径而不是相对路径，避免在Windows Chrome中出现加载问题
-if (typeof window !== 'undefined') {
-  // 获取基础路径（处理根路径和子路径部署）
-  const getBasePath = () => {
-    // 获取当前页面的目录路径（不包括文件名）
-    const pathname = window.location.pathname;
-    const basePath = pathname.substring(0, pathname.lastIndexOf('/') + 1);
-    return window.location.origin + basePath;
-  };
+// 配置Monaco Editor Loader使用本地npm包，而不是从CDN加载
+// 这样可以避免在生产环境中出现CDN连接问题
+loader.config({ monaco });
 
-  const basePath = getBasePath();
-
-  console.log('🔧 配置Monaco Editor Worker路径:', basePath);
-
-  // 覆盖MonacoEnvironment配置，使用绝对路径
-  (window as any).MonacoEnvironment = {
-    globalAPI: true,
-    getWorkerUrl: function (_moduleId: string, label: string) {
-      // 使用绝对路径，确保Worker能正确加载
-      const workerPaths: { [key: string]: string } = {
-        'json': `${basePath}monacoeditorwork/json.worker.bundle.js`,
-        'css': `${basePath}monacoeditorwork/css.worker.bundle.js`,
-        'scss': `${basePath}monacoeditorwork/css.worker.bundle.js`,
-        'less': `${basePath}monacoeditorwork/css.worker.bundle.js`,
-        'html': `${basePath}monacoeditorwork/html.worker.bundle.js`,
-        'handlebars': `${basePath}monacoeditorwork/html.worker.bundle.js`,
-        'razor': `${basePath}monacoeditorwork/html.worker.bundle.js`,
-        'typescript': `${basePath}monacoeditorwork/ts.worker.bundle.js`,
-        'javascript': `${basePath}monacoeditorwork/ts.worker.bundle.js`,
-      };
-
-      const workerUrl = workerPaths[label] || `${basePath}monacoeditorwork/editor.worker.bundle.js`;
-
-      console.log(`🔗 加载Worker [${label}]:`, workerUrl);
-
-      return workerUrl;
-    }
-  };
-
-  // 添加Monaco Editor加载错误的详细日志
-  window.addEventListener('error', (event) => {
-    if (event.filename && event.filename.includes('monacoeditorwork')) {
-      console.error('❌ Monaco Worker加载失败:', {
-        filename: event.filename,
-        message: event.message,
-        lineno: event.lineno,
-        colno: event.colno,
-        error: event.error
-      });
-
-      const workerType = event.filename.match(/(\w+)\.worker/)?.[1] || 'unknown';
-      console.error(`❌ 失败的Worker类型: ${workerType}`);
-      console.error(`❌ 完整URL: ${event.filename}`);
-    }
-  }, true);
-
-  // 输出环境信息
-  console.log('🌍 当前环境信息:', {
-    url: window.location.href,
-    origin: window.location.origin,
-    pathname: window.location.pathname,
-    basePath: basePath
-  });
-}
+console.log('✅ Monaco Editor配置完成：使用本地npm包');
 
 const { Text } = Typography;
 
