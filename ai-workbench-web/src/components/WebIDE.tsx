@@ -9,11 +9,70 @@ import {
   DownloadOutlined,
   RocketOutlined,
 } from '@ant-design/icons';
-import Editor from '@monaco-editor/react';
+import Editor, { loader } from '@monaco-editor/react';
 import GitCommitModal from './GitCommitModal';
 import DeployModal from './DeployModal';
 import { exportFilesToZip } from '../utils/fileExporter';
 import type { IDEFile } from '../types/pipeline';
+import * as monaco from 'monaco-editor';
+
+// 配置Monaco Editor Loader使用本地npm包，而不是从CDN加载
+// 这样可以避免在生产环境中出现CDN连接问题
+loader.config({ monaco });
+
+// 配置Monaco Editor的Worker环境
+// 这样可以让Monaco Editor正确加载Web Workers，避免在主线程中运行
+(self as any).MonacoEnvironment = {
+  getWorker(_: any, label: string) {
+    const getWorkerModule = (moduleUrl: string, label: string) => {
+      return new Worker((self as any).MonacoEnvironment.getWorkerUrl(moduleUrl, label), {
+        name: label,
+        type: 'module'
+      });
+    };
+
+    switch (label) {
+      case 'json':
+        return getWorkerModule('/monaco-editor/esm/vs/language/json/json.worker?worker', 'json');
+      case 'css':
+      case 'scss':
+      case 'less':
+        return getWorkerModule('/monaco-editor/esm/vs/language/css/css.worker?worker', 'css');
+      case 'html':
+      case 'handlebars':
+      case 'razor':
+        return getWorkerModule('/monaco-editor/esm/vs/language/html/html.worker?worker', 'html');
+      case 'typescript':
+      case 'javascript':
+        return getWorkerModule('/monaco-editor/esm/vs/language/typescript/ts.worker?worker', 'typescript');
+      default:
+        return getWorkerModule('/monaco-editor/esm/vs/editor/editor.worker?worker', 'editor');
+    }
+  },
+  getWorkerUrl(_moduleId: string, label: string) {
+    // 使用vite-plugin-monaco-editor生成的worker文件
+    const workerPath = '/monacoeditorwork/';
+    switch (label) {
+      case 'json':
+        return `${workerPath}json.worker.bundle.js`;
+      case 'css':
+      case 'scss':
+      case 'less':
+        return `${workerPath}css.worker.bundle.js`;
+      case 'html':
+      case 'handlebars':
+      case 'razor':
+        return `${workerPath}html.worker.bundle.js`;
+      case 'typescript':
+      case 'javascript':
+        return `${workerPath}ts.worker.bundle.js`;
+      default:
+        return `${workerPath}editor.worker.bundle.js`;
+    }
+  }
+};
+
+console.log('✅ Monaco Editor配置完成：使用本地npm包 + Worker环境');
 
 const { Text } = Typography;
 
