@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { Typography, Button, Space, Divider, Modal, message } from 'antd';
-import { ThunderboltOutlined, ArrowRightOutlined } from '@ant-design/icons';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Typography, Button, Modal, message, Tooltip } from 'antd';
+import { ThunderboltOutlined, ArrowLeftOutlined, CheckCircleFilled, ClockCircleFilled, LoadingOutlined, CloseCircleFilled, EyeFilled } from '@ant-design/icons';
 import StageCard from '../components/StageCard';
 import WebIDE from '../components/WebIDE';
 import DeployConfigModal from '../components/DeployConfigModal';
@@ -9,11 +9,14 @@ import DeploymentStageCard from '../components/DeploymentStageCard';
 import type { Pipeline, LogEntry, ExecutionMetrics, StageArtifact, IDEFile } from '../types/pipeline';
 import { StageStatus, StageType, LogLevel, ArtifactType } from '../types/pipeline';
 import { loadArtifactContent } from '../utils/artifactLoader';
+import { useThemeColors } from '../contexts/ThemeContext';
 
 const { Title, Text } = Typography;
 
 const PipelineView: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
+  const navigate = useNavigate();
+  const colors = useThemeColors();
 
   // Mock初始流水线数据
   const [pipeline, setPipeline] = useState<Pipeline>({
@@ -37,7 +40,7 @@ const PipelineView: React.FC = () => {
             name: 'PROJECT_ANALYSIS.md',
             url: '/artifacts/project-analysis.md',
             type: ArtifactType.MARKDOWN,
-            content: '', // 将在useEffect中加载
+            content: '',
             createdAt: new Date(Date.now() - 3600000).toISOString(),
           },
         ],
@@ -57,7 +60,7 @@ const PipelineView: React.FC = () => {
             name: '需求文档.md',
             url: '/artifacts/requirement-doc.md',
             type: ArtifactType.MARKDOWN,
-            content: '', // 将在useEffect中加载
+            content: '',
             createdAt: new Date(Date.now() - 1800000).toISOString(),
           },
         ],
@@ -169,7 +172,7 @@ const PipelineView: React.FC = () => {
     };
 
     loadArtifactContents();
-  }, []); // 只在组件挂载时执行一次
+  }, []);
 
   // Mock: 生成模拟日志
   const generateMockLogs = (stageName: string): LogEntry[] => {
@@ -249,8 +252,8 @@ const PipelineView: React.FC = () => {
   // Mock: 生成执行指标
   const generateMockMetrics = (): ExecutionMetrics => {
     return {
-      duration: Math.floor(Math.random() * 10 + 5), // 5-15秒
-      tokenUsage: Math.floor(Math.random() * 5000 + 1000), // 1000-6000 tokens
+      duration: Math.floor(Math.random() * 10 + 5),
+      tokenUsage: Math.floor(Math.random() * 5000 + 1000),
     };
   };
 
@@ -261,7 +264,7 @@ const PipelineView: React.FC = () => {
     onComplete: () => void
   ) => {
     let currentIndex = 0;
-    const interval = 400; // 每400ms推送一条日志
+    const interval = 400;
 
     const streamInterval = setInterval(() => {
       if (currentIndex < logs.length) {
@@ -280,7 +283,6 @@ const PipelineView: React.FC = () => {
         currentIndex++;
       } else {
         clearInterval(streamInterval);
-        // 日志推送完成，执行回调
         onComplete();
       }
     }, interval);
@@ -290,17 +292,14 @@ const PipelineView: React.FC = () => {
 
   // 运行单个阶段
   const handleRunStage = useCallback((stageId: string) => {
-    // 获取阶段名称
     const stage = pipeline.stages.find((s) => s.id === stageId);
     if (!stage) return;
 
-    // 如果是部署节点，弹出配置对话框
     if (stage.type === StageType.DEPLOYMENT) {
       setDeployConfigVisible(true);
       return;
     }
 
-    // 设置阶段为运行中并自动展开
     setPipeline((prev) => ({
       ...prev,
       stages: prev.stages.map((s) =>
@@ -317,23 +316,19 @@ const PipelineView: React.FC = () => {
       ),
     }));
 
-    // 生成模拟日志并开始流式推送
     const mockLogs = generateMockLogs(stage.name);
     simulateLogStreaming(stageId, mockLogs, () => {
-      // 日志推送完成后，更新状态为等待审核，并添加执行指标
       setPipeline((prev) => ({
         ...prev,
         stages: prev.stages.map((s) => {
           if (s.id !== stageId) return s;
 
-          // 根据阶段类型决定产出物类型和文件名
           const isCodeStage = s.type === StageType.CODE_DEV || s.type === StageType.TEST_SCRIPT;
           const artifactType = isCodeStage ? ArtifactType.CODE : ArtifactType.MARKDOWN;
           const fileExtension = isCodeStage ? 'ts' : 'md';
           const fileName = `${s.type}.${fileExtension}`;
           const artifactUrl = `/artifacts/${fileName}`;
 
-          // 异步加载文件内容
           const loadContentAsync = async () => {
             const content = await loadArtifactContent(artifactUrl);
             setPipeline((prev) => ({
@@ -351,7 +346,6 @@ const PipelineView: React.FC = () => {
             }));
           };
 
-          // 立即开始加载内容
           loadContentAsync();
 
           return {
@@ -363,7 +357,7 @@ const PipelineView: React.FC = () => {
                 name: `${s.name}_产出.${fileExtension}`,
                 url: artifactUrl,
                 type: artifactType,
-                content: '', // 初始为空，将异步加载
+                content: '',
                 filePath: isCodeStage ? `/src/generated/${fileName}` : undefined,
                 language: isCodeStage ? 'typescript' : undefined,
                 createdAt: new Date().toISOString(),
@@ -388,7 +382,6 @@ const PipelineView: React.FC = () => {
             completedAt: new Date().toISOString(),
           };
         }
-        // 激活下一个阶段
         if (index === stageIndex + 1 && stage.status === StageStatus.PENDING) {
           return { ...stage };
         }
@@ -398,6 +391,29 @@ const PipelineView: React.FC = () => {
       return { ...prev, stages: updatedStages };
     });
     message.success('阶段已批准，下一阶段已激活');
+  }, []);
+
+  // 拒绝阶段（重新生成）
+  const handleRejectStage = useCallback((stageId: string) => {
+    setPipeline((prev) => ({
+      ...prev,
+      stages: prev.stages.map((stage) => {
+        if (stage.id === stageId) {
+          return {
+            ...stage,
+            status: StageStatus.PENDING,
+            artifacts: [],
+            logs: [],
+            metrics: undefined,
+            startedAt: undefined,
+            completedAt: undefined,
+            error: undefined,
+          };
+        }
+        return stage;
+      }),
+    }));
+    message.info('已拒绝，请重新输入需求并生成');
   }, []);
 
   // 一键执行所有
@@ -411,12 +427,10 @@ const PipelineView: React.FC = () => {
         setPipeline((prev) => ({ ...prev, isAutoRunning: true }));
         message.info('开始一键执行流水线...');
 
-        // Mock: 模拟自动执行所有待处理的阶段
         const pendingStages = pipeline.stages.filter((s) => s.status === StageStatus.PENDING);
         let cumulativeDelay = 500;
 
         pendingStages.forEach((stage, index) => {
-          // 开始运行阶段
           setTimeout(() => {
             setPipeline((prev) => ({
               ...prev,
@@ -434,10 +448,8 @@ const PipelineView: React.FC = () => {
               ),
             }));
 
-            // 生成并推送日志
             const mockLogs = generateMockLogs(stage.name);
             simulateLogStreaming(stage.id, mockLogs, () => {
-              // 日志推送完成后直接标记为完成（一键执行无需审核），并添加执行指标
               setPipeline((prev) => ({
                 ...prev,
                 stages: prev.stages.map((s) => {
@@ -449,7 +461,6 @@ const PipelineView: React.FC = () => {
                   const fileName = `${s.type}.${fileExtension}`;
                   const artifactUrl = `/artifacts/${fileName}`;
 
-                  // 异步加载文件内容
                   const loadContentAsync = async () => {
                     const content = await loadArtifactContent(artifactUrl);
                     setPipeline((prev) => ({
@@ -467,7 +478,6 @@ const PipelineView: React.FC = () => {
                     }));
                   };
 
-                  // 立即开始加载内容
                   loadContentAsync();
 
                   return {
@@ -480,7 +490,7 @@ const PipelineView: React.FC = () => {
                         name: `${s.name}_产出.${fileExtension}`,
                         url: artifactUrl,
                         type: artifactType,
-                        content: '', // 初始为空，将异步加载
+                        content: '',
                         filePath: isCodeStage ? `/src/generated/${fileName}` : undefined,
                         language: isCodeStage ? 'typescript' : undefined,
                         createdAt: new Date().toISOString(),
@@ -490,7 +500,6 @@ const PipelineView: React.FC = () => {
                 }),
               }));
 
-              // 最后一个阶段完成时结束
               if (index === pendingStages.length - 1) {
                 message.success('流水线执行完成！');
                 setPipeline((prev) => ({ ...prev, isAutoRunning: false }));
@@ -498,7 +507,6 @@ const PipelineView: React.FC = () => {
             });
           }, cumulativeDelay);
 
-          // 每个阶段间隔约5秒（日志推送时间）
           cumulativeDelay += 5500;
         });
       },
@@ -536,16 +544,13 @@ const PipelineView: React.FC = () => {
       return;
     }
 
-    // 将artifacts转换为IDE文件格式
     const files: IDEFile[] = await Promise.all(
       codeArtifacts.map(async (artifact, index) => {
-        // 如果没有内容，尝试加载
         let content = artifact.content || '';
         if (!content && artifact.url) {
           content = await loadArtifactContent(artifact.url);
         }
 
-        // 从文件扩展名推断语言
         const getLanguage = (fileName: string): string => {
           const ext = fileName.split('.').pop()?.toLowerCase();
           const languageMap: Record<string, string> = {
@@ -595,7 +600,6 @@ const PipelineView: React.FC = () => {
         return {
           ...stage,
           artifacts: stage.artifacts.map((artifact) => {
-            // 找到对应的更新文件
             const updatedFile = updatedFiles.find(
               (f) => f.name === artifact.name || f.path === artifact.filePath
             );
@@ -626,26 +630,18 @@ const PipelineView: React.FC = () => {
 
   // Git提交和推送
   const handleGitCommit = useCallback(async (commitMessage: string) => {
-    // 这里是Git操作的Mock实现
-    // 实际项目中应该调用后端API执行真实的Git命令
     return new Promise<void>((resolve, reject) => {
-      // 模拟Git操作延迟
       setTimeout(() => {
         try {
           console.log('执行Git操作:');
           console.log('1. git add .');
           console.log('2. git commit -m "' + commitMessage + '"');
           console.log('3. git push');
-
-          // 模拟成功
           resolve();
-
-          // 如果需要模拟失败，可以使用：
-          // reject('推送被拒绝，请先拉取远程更改');
         } catch (error) {
           reject(error);
         }
-      }, 2000); // 模拟2秒的网络延迟
+      }, 2000);
     });
   }, []);
 
@@ -656,11 +652,9 @@ const PipelineView: React.FC = () => {
     setDeploymentLogs([]);
     setDeploymentProgress(0);
 
-    // 找到部署节点
     const deploymentStage = pipeline.stages.find((s) => s.type === StageType.DEPLOYMENT);
     if (!deploymentStage) return;
 
-    // 设置部署节点为运行中
     setPipeline((prev) => ({
       ...prev,
       stages: prev.stages.map((s) =>
@@ -677,14 +671,12 @@ const PipelineView: React.FC = () => {
       ),
     }));
 
-    // Mock部署流程
     const addLog = (message: string, level: 'info' | 'success' | 'error' | 'warning' = 'info') => {
       const timestamp = new Date().toLocaleTimeString('zh-CN', { hour12: false });
       setDeploymentLogs((prev) => [...prev, { timestamp, message, level }]);
     };
 
     try {
-      // 步骤1: Git提交（如果是auto模式）
       if (config.mode === 'auto') {
         addLog(`📝 提交代码到Git仓库...`);
         await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -692,19 +684,16 @@ const PipelineView: React.FC = () => {
         setDeploymentProgress(10);
       }
 
-      // 步骤2: 触发CI/CD
       addLog(`🚀 触发${config.environment}环境的CI/CD流程...`);
       await new Promise((resolve) => setTimeout(resolve, 1500));
       addLog(`✓ CI/CD任务已创建 (Job ID: ${Math.random().toString(36).substring(7)})`, 'success');
       setDeploymentProgress(20);
 
-      // 步骤3: 环境检查
       addLog(`🔍 检查${config.environment}环境状态...`);
       await new Promise((resolve) => setTimeout(resolve, 1000));
       addLog(`✓ 环境检查通过`, 'success');
       setDeploymentProgress(30);
 
-      // 步骤4: 代码构建
       addLog(`🔨 开始构建应用...`);
       await new Promise((resolve) => setTimeout(resolve, 1200));
       addLog(`  - 安装依赖包...`);
@@ -716,7 +705,6 @@ const PipelineView: React.FC = () => {
       addLog(`✓ 构建完成 (build-${Date.now()}.tar.gz)`, 'success');
       setDeploymentProgress(60);
 
-      // 步骤5: 部署到环境
       addLog(`📦 部署到${config.environment}环境...`);
       await new Promise((resolve) => setTimeout(resolve, 1000));
       addLog(`  - 上传部署包...`);
@@ -730,7 +718,6 @@ const PipelineView: React.FC = () => {
       addLog(`✓ 部署成功`, 'success');
       setDeploymentProgress(80);
 
-      // 步骤6: 健康检查
       addLog(`💊 执行健康检查...`);
       await new Promise((resolve) => setTimeout(resolve, 1000));
       addLog(`  - 端口检查: ✓`);
@@ -742,7 +729,6 @@ const PipelineView: React.FC = () => {
       addLog(`✓ 健康检查通过`, 'success');
       setDeploymentProgress(100);
 
-      // 部署成功
       const envDomain = {
         test: 'test.example.com',
         staging: 'staging.example.com',
@@ -750,7 +736,6 @@ const PipelineView: React.FC = () => {
       };
       addLog(`🎉 部署成功！访问地址: https://${envDomain[config.environment]}`, 'success');
 
-      // 更新部署节点状态为完成
       setPipeline((prev) => ({
         ...prev,
         stages: prev.stages.map((s) =>
@@ -786,89 +771,109 @@ const PipelineView: React.FC = () => {
     }
   }, [pipeline.stages]);
 
-  // 渲染流水线可视化
-  const renderPipelineVisualization = () => {
-    return (
-      <div
-        style={{
-          padding: '40px 20px',
-          background: '#fafafa',
-          borderRadius: '8px',
-          marginBottom: '32px',
-          overflowX: 'auto',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: '16px',
-            minWidth: 'fit-content',
-          }}
-        >
-          {pipeline.stages.map((stage, index) => (
-            <React.Fragment key={stage.id}>
-              {/* 节点 */}
-              <div
-                style={{
-                  width: '70px',
-                  height: '70px',
-                  borderRadius: '50%',
-                  background:
-                    stage.status === StageStatus.COMPLETED
-                      ? '#52c41a'
-                      : stage.status === StageStatus.RUNNING
-                      ? '#1890ff'
-                      : stage.status === StageStatus.WAITING_REVIEW
-                      ? '#faad14'
-                      : stage.status === StageStatus.FAILED
-                      ? '#ff4d4f'
-                      : '#d9d9d9',
-                  color: '#fff',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  fontSize: '13px',
-                  fontWeight: 'bold',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                  writingMode: 'vertical-rl',
-                  letterSpacing: '2px',
-                }}
-              >
-                {stage.name}
-              </div>
-
-              {/* 连接线 */}
-              {index < pipeline.stages.length - 1 && (
-                <ArrowRightOutlined style={{ fontSize: '20px', color: '#bfbfbf' }} />
-              )}
-            </React.Fragment>
-          ))}
-        </div>
-      </div>
-    );
+  // 获取状态图标
+  const getStatusIcon = (status: StageStatus) => {
+    switch (status) {
+      case StageStatus.COMPLETED:
+        return <CheckCircleFilled style={{ color: colors.success, fontSize: '16px' }} />;
+      case StageStatus.RUNNING:
+        return <LoadingOutlined style={{ color: colors.primary, fontSize: '16px' }} spin />;
+      case StageStatus.WAITING_REVIEW:
+        return <EyeFilled style={{ color: colors.warning, fontSize: '16px' }} />;
+      case StageStatus.FAILED:
+        return <CloseCircleFilled style={{ color: colors.error, fontSize: '16px' }} />;
+      default:
+        return <ClockCircleFilled style={{ color: colors.textMuted, fontSize: '16px' }} />;
+    }
   };
 
+  // 获取状态颜色
+  const getStatusColor = (status: StageStatus) => {
+    switch (status) {
+      case StageStatus.COMPLETED:
+        return { bg: `${colors.success}26`, border: `${colors.success}66`, glow: `${colors.success}4d` };
+      case StageStatus.RUNNING:
+        return { bg: `${colors.primary}26`, border: `${colors.primary}80`, glow: `${colors.primary}66` };
+      case StageStatus.WAITING_REVIEW:
+        return { bg: `${colors.warning}26`, border: `${colors.warning}66`, glow: `${colors.warning}4d` };
+      case StageStatus.FAILED:
+        return { bg: `${colors.error}26`, border: `${colors.error}66`, glow: `${colors.error}4d` };
+      default:
+        return { bg: `${colors.textMuted}26`, border: `${colors.textMuted}4d`, glow: 'transparent' };
+    }
+  };
+
+  // 计算完成进度
+  const completedStages = pipeline.stages.filter(s => s.status === StageStatus.COMPLETED).length;
+  const progressPercent = Math.round((completedStages / pipeline.stages.length) * 100);
+
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-      {/* 顶部标题和操作 */}
+    <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+      {/* Header */}
       <div
         style={{
           display: 'flex',
-          justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: '24px',
+          justifyContent: 'space-between',
+          marginBottom: '32px',
         }}
       >
-        <Space>
-          <Title level={3} style={{ margin: 0 }}>
-            项目: {pipeline.projectName}
-          </Title>
-          <Text type="secondary">/ AI流水线</Text>
-        </Space>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          {/* Back Button */}
+          <button
+            onClick={() => navigate('/projects')}
+            style={{
+              width: '44px',
+              height: '44px',
+              borderRadius: '12px',
+              background: colors.bgSurface,
+              border: `1px solid ${colors.borderPrimary}`,
+              color: colors.textSecondary,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = colors.borderAccent;
+              e.currentTarget.style.color = colors.primary;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = colors.borderPrimary;
+              e.currentTarget.style.color = colors.textSecondary;
+            }}
+          >
+            <ArrowLeftOutlined style={{ fontSize: '18px' }} />
+          </button>
 
+          {/* Title */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <Title level={2} style={{ margin: 0, fontSize: '28px', fontWeight: 700, color: colors.textPrimary }}>
+                {pipeline.projectName}
+              </Title>
+              <span
+                style={{
+                  padding: '4px 12px',
+                  borderRadius: '6px',
+                  background: `${colors.primary}1a`,
+                  border: `1px solid ${colors.primary}33`,
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: colors.primary,
+                }}
+              >
+                开发者流水线
+              </span>
+            </div>
+            <Text style={{ color: colors.textTertiary, fontSize: '14px' }}>
+              AI 驱动的智能研发流程 · {completedStages}/{pipeline.stages.length} 阶段完成
+            </Text>
+          </div>
+        </div>
+
+        {/* Action Button */}
         <Button
           type="primary"
           size="large"
@@ -876,22 +881,243 @@ const PipelineView: React.FC = () => {
           onClick={handleRunAll}
           disabled={pipeline.isAutoRunning}
           loading={pipeline.isAutoRunning}
+          style={{
+            height: '48px',
+            padding: '0 28px',
+            fontSize: '15px',
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}
         >
-          {pipeline.isAutoRunning ? '执行中...' : '一键执行所有'}
+          {pipeline.isAutoRunning ? '执行中...' : '一键执行全部'}
         </Button>
       </div>
 
-      {/* 流水线可视化 */}
-      {renderPipelineVisualization()}
+      {/* Pipeline Visualization */}
+      <div
+        style={{
+          position: 'relative',
+          padding: '40px 32px',
+          marginBottom: '40px',
+          borderRadius: '20px',
+          background: colors.gradientSecondary,
+          border: `1px solid ${colors.borderPrimary}`,
+          overflow: 'hidden',
+        }}
+      >
+        {/* Background Grid */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundImage: `
+              linear-gradient(${colors.borderPrimary} 1px, transparent 1px),
+              linear-gradient(90deg, ${colors.borderPrimary} 1px, transparent 1px)
+            `,
+            backgroundSize: '32px 32px',
+            pointerEvents: 'none',
+          }}
+        />
 
-      <Divider orientation="left">
-        <Text strong style={{ fontSize: '16px' }}>
+        {/* Progress Bar */}
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '3px',
+            background: colors.bgSurface,
+          }}
+        >
+          <div
+            style={{
+              height: '100%',
+              width: `${progressPercent}%`,
+              background: `linear-gradient(90deg, ${colors.primary} 0%, ${colors.success} 100%)`,
+              transition: 'width 0.5s ease',
+              boxShadow: `0 0 20px ${colors.primaryGlow}`,
+            }}
+          />
+        </div>
+
+        {/* Pipeline Nodes */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            position: 'relative',
+            zIndex: 1,
+          }}
+        >
+          {pipeline.stages.map((stage, index) => {
+            const statusColors = getStatusColor(stage.status);
+            return (
+              <React.Fragment key={stage.id}>
+                {/* Node */}
+                <Tooltip
+                  title={
+                    <div style={{ padding: '4px 0' }}>
+                      <div style={{ fontWeight: 600, marginBottom: '4px' }}>{stage.name}</div>
+                      <div style={{ fontSize: '12px', opacity: 0.8 }}>{stage.description}</div>
+                    </div>
+                  }
+                  placement="top"
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '12px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {/* Circle Node */}
+                    <div
+                      style={{
+                        width: '56px',
+                        height: '56px',
+                        borderRadius: '16px',
+                        background: statusColors.bg,
+                        border: `2px solid ${statusColors.border}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: stage.status === StageStatus.RUNNING ? `0 0 30px ${statusColors.glow}` : 'none',
+                        transition: 'all 0.3s ease',
+                        position: 'relative',
+                      }}
+                    >
+                      {getStatusIcon(stage.status)}
+
+                      {/* Pulse animation for running */}
+                      {stage.status === StageStatus.RUNNING && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            inset: '-4px',
+                            borderRadius: '20px',
+                            border: `2px solid ${statusColors.border}`,
+                            animation: 'pulse 2s infinite',
+                          }}
+                        />
+                      )}
+                    </div>
+
+                    {/* Label */}
+                    <div style={{ textAlign: 'center' }}>
+                      <div
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: 600,
+                          color: colors.textTertiary,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                          marginBottom: '2px',
+                        }}
+                      >
+                        {stage.order === 0 ? 'S' : `0${stage.order}`}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          color: stage.status === StageStatus.PENDING ? colors.textTertiary : colors.textPrimary,
+                          maxWidth: '80px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {stage.name}
+                      </div>
+                    </div>
+                  </div>
+                </Tooltip>
+
+                {/* Connector Line */}
+                {index < pipeline.stages.length - 1 && (
+                  <div
+                    style={{
+                      flex: 1,
+                      height: '2px',
+                      margin: '0 8px',
+                      marginBottom: '36px',
+                      background: index < completedStages
+                        ? `linear-gradient(90deg, ${colors.success}80 0%, ${colors.primary}80 100%)`
+                        : `${colors.textMuted}4d`,
+                      borderRadius: '1px',
+                      position: 'relative',
+                    }}
+                  >
+                    {/* Arrow */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        right: '-4px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        width: 0,
+                        height: 0,
+                        borderTop: '4px solid transparent',
+                        borderBottom: '4px solid transparent',
+                        borderLeft: `6px solid ${index < completedStages ? `${colors.primary}80` : `${colors.textMuted}4d`}`,
+                      }}
+                    />
+                  </div>
+                )}
+              </React.Fragment>
+            );
+          })}
+        </div>
+
+        {/* Inline keyframes */}
+        <style>{`
+          @keyframes pulse {
+            0% {
+              opacity: 1;
+              transform: scale(1);
+            }
+            50% {
+              opacity: 0;
+              transform: scale(1.2);
+            }
+            100% {
+              opacity: 0;
+              transform: scale(1.2);
+            }
+          }
+        `}</style>
+      </div>
+
+      {/* Section Title */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          marginBottom: '24px',
+        }}
+      >
+        <div
+          style={{
+            width: '4px',
+            height: '24px',
+            borderRadius: '2px',
+            background: colors.gradientPrimary,
+          }}
+        />
+        <Title level={4} style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: colors.textPrimary }}>
           阶段详情
-        </Text>
-      </Divider>
+        </Title>
+      </div>
 
-      {/* 阶段列表 */}
-      <div>
+      {/* Stage Cards */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {pipeline.stages.map((stage) =>
           stage.type === StageType.DEPLOYMENT ? (
             <DeploymentStageCard
@@ -923,6 +1149,7 @@ const PipelineView: React.FC = () => {
               stage={stage}
               onRun={handleRunStage}
               onApprove={handleApproveStage}
+              onReject={handleRejectStage}
               onEditArtifact={handleEditArtifact}
               onOpenInIDE={handleOpenInIDE}
             />
@@ -930,7 +1157,7 @@ const PipelineView: React.FC = () => {
         )}
       </div>
 
-      {/* 部署配置弹窗 */}
+      {/* Modals */}
       <DeployConfigModal
         visible={deployConfigVisible}
         projectName={pipeline.projectName}
@@ -938,7 +1165,6 @@ const PipelineView: React.FC = () => {
         onCancel={() => setDeployConfigVisible(false)}
       />
 
-      {/* Web IDE */}
       <WebIDE
         visible={ideVisible}
         title={ideTitle}

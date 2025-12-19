@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Typography, Space } from 'antd';
+import { Space } from 'antd';
 import {
   InfoCircleOutlined,
   CheckCircleOutlined,
@@ -11,8 +11,7 @@ import {
 import type { LogEntry, ExecutionMetrics } from '../types/pipeline';
 import { LogLevel } from '../types/pipeline';
 import dayjs from 'dayjs';
-
-const { Text } = Typography;
+import { useTheme } from '../contexts/ThemeContext';
 
 interface LogViewerProps {
   logs: LogEntry[];
@@ -28,55 +27,65 @@ const LogViewer: React.FC<LogViewerProps> = ({
   autoScroll = true,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const endRef = useRef<HTMLDivElement>(null);
+  const stickToBottomRef = useRef(true);
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
 
-  // 自动滚动到底部
+  const handleScroll = () => {
+    const container = containerRef.current;
+    if (!container) return;
+    const distanceToBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    stickToBottomRef.current = distanceToBottom < 40;
+  };
+
+  // 自动滚动到日志面板底部（不滚动整个页面）
   useEffect(() => {
-    if (autoScroll && endRef.current) {
-      endRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [logs, autoScroll]);
+    if (!autoScroll || !stickToBottomRef.current) return;
+    const container = containerRef.current;
+    if (!container) return;
+    container.scrollTo({ top: container.scrollHeight, behavior: 'auto' });
+  }, [logs.length, autoScroll]);
 
   // 获取日志级别对应的图标和颜色
   const getLogLevelConfig = (level: string) => {
     const configs = {
       [LogLevel.INFO]: {
         icon: <InfoCircleOutlined />,
-        color: '#1890ff',
-        bgColor: 'rgba(24, 144, 255, 0.05)',
+        color: 'var(--color-primary)',
+        bgColor: isDark ? 'rgba(0, 212, 255, 0.08)' : 'rgba(14, 165, 233, 0.08)',
       },
       [LogLevel.SUCCESS]: {
         icon: <CheckCircleOutlined />,
-        color: '#52c41a',
-        bgColor: 'rgba(82, 196, 26, 0.05)',
+        color: 'var(--color-accent-green)',
+        bgColor: isDark ? 'rgba(34, 197, 94, 0.08)' : 'rgba(22, 163, 74, 0.08)',
       },
       [LogLevel.ERROR]: {
         icon: <CloseCircleOutlined />,
-        color: '#ff4d4f',
-        bgColor: 'rgba(255, 77, 79, 0.05)',
+        color: 'var(--color-accent-red)',
+        bgColor: isDark ? 'rgba(239, 68, 68, 0.08)' : 'rgba(220, 38, 38, 0.08)',
       },
       [LogLevel.WARNING]: {
         icon: <ExclamationCircleOutlined />,
-        color: '#faad14',
-        bgColor: 'rgba(250, 173, 20, 0.05)',
+        color: 'var(--color-accent-orange)',
+        bgColor: isDark ? 'rgba(245, 158, 11, 0.08)' : 'rgba(217, 119, 6, 0.08)',
       },
       [LogLevel.METRICS]: {
         icon: <DashboardOutlined />,
-        color: '#722ed1',
-        bgColor: 'rgba(114, 46, 209, 0.05)',
+        color: 'var(--color-secondary)',
+        bgColor: isDark ? 'rgba(168, 85, 247, 0.08)' : 'rgba(139, 92, 246, 0.08)',
       },
       [LogLevel.STATUS_UPDATE]: {
         icon: <SyncOutlined />,
-        color: '#13c2c2',
-        bgColor: 'rgba(19, 194, 194, 0.05)',
+        color: '#06b6d4',
+        bgColor: 'rgba(6, 182, 212, 0.08)',
       },
     };
 
     return (
       configs[level as LogLevel] || {
         icon: <InfoCircleOutlined />,
-        color: '#8c8c8c',
-        bgColor: 'rgba(140, 140, 140, 0.05)',
+        color: 'var(--text-tertiary)',
+        bgColor: isDark ? 'rgba(100, 116, 139, 0.08)' : 'rgba(100, 116, 139, 0.06)',
       }
     );
   };
@@ -90,28 +99,29 @@ const LogViewer: React.FC<LogViewerProps> = ({
         style={{
           marginTop: '12px',
           padding: '12px 16px',
-          background: 'rgba(114, 46, 209, 0.05)',
-          borderLeft: '3px solid #722ed1',
-          borderRadius: '4px',
+          background: isDark ? 'rgba(168, 85, 247, 0.1)' : 'rgba(139, 92, 246, 0.08)',
+          border: `1px solid ${isDark ? 'rgba(168, 85, 247, 0.2)' : 'rgba(139, 92, 246, 0.2)'}`,
+          borderRadius: '8px',
         }}
       >
-        <Space direction="vertical" size="small">
-          <Text strong style={{ color: '#722ed1' }}>
-            <DashboardOutlined /> 执行指标
-          </Text>
-          <Space size="large">
-            {metrics.duration !== undefined && (
-              <Text style={{ color: '#d9d9d9' }}>
-                耗时: <Text strong style={{ color: '#fff' }}>{metrics.duration}s</Text>
-              </Text>
-            )}
-            {metrics.tokenUsage !== undefined && (
-              <Text style={{ color: '#d9d9d9' }}>
-                Token: <Text strong style={{ color: '#fff' }}>{metrics.tokenUsage.toLocaleString()}</Text>
-              </Text>
-            )}
-          </Space>
-        </Space>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+          <DashboardOutlined style={{ color: 'var(--color-secondary)', fontSize: '14px' }} />
+          <span style={{ color: 'var(--color-secondary)', fontSize: '12px', fontWeight: 600 }}>执行指标</span>
+        </div>
+        <div style={{ display: 'flex', gap: '24px' }}>
+          {metrics.duration !== undefined && (
+            <div>
+              <span style={{ color: 'var(--text-tertiary)', fontSize: '11px' }}>耗时</span>
+              <div style={{ color: 'var(--text-primary)', fontSize: '14px', fontWeight: 600 }}>{metrics.duration}s</div>
+            </div>
+          )}
+          {metrics.tokenUsage !== undefined && (
+            <div>
+              <span style={{ color: 'var(--text-tertiary)', fontSize: '11px' }}>Token 消耗</span>
+              <div style={{ color: 'var(--text-primary)', fontSize: '14px', fontWeight: 600 }}>{metrics.tokenUsage.toLocaleString()}</div>
+            </div>
+          )}
+        </div>
       </div>
     );
   };
@@ -119,61 +129,80 @@ const LogViewer: React.FC<LogViewerProps> = ({
   return (
     <div
       style={{
-        background: '#000',
-        borderRadius: '4px',
-        padding: '12px',
-        maxHeight: '400px',
+        background: isDark ? 'rgba(10, 14, 23, 0.8)' : 'var(--bg-tertiary)',
+        borderRadius: '12px',
+        border: '1px solid var(--border-primary)',
+        padding: '16px',
+        height: isStreaming ? '320px' : undefined,
+        maxHeight: isStreaming ? '320px' : '400px',
         overflowY: 'auto',
-        fontFamily: 'Monaco, Consolas, "Courier New", monospace',
+        fontFamily: "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace",
       }}
       ref={containerRef}
+      onScroll={handleScroll}
     >
-      <Space direction="vertical" style={{ width: '100%' }} size="small">
-        {logs.map((log) => {
+      <Space direction="vertical" style={{ width: '100%' }} size={4}>
+        {logs.map((log, index) => {
           const config = getLogLevelConfig(log.level);
           return (
             <div
               key={log.id}
               style={{
-                padding: '6px 8px',
+                padding: '8px 12px',
                 background: config.bgColor,
-                borderRadius: '2px',
+                borderRadius: '6px',
                 display: 'flex',
-                gap: '8px',
+                gap: '10px',
                 alignItems: 'flex-start',
+                opacity: 0,
+                animation: 'logFadeIn 0.3s ease-out forwards',
+                animationDelay: `${index * 0.02}s`,
               }}
             >
-              <span style={{ color: config.color, marginTop: '2px' }}>
+              <span style={{ color: config.color, marginTop: '2px', fontSize: '12px' }}>
                 {config.icon}
               </span>
-              <div style={{ flex: 1 }}>
-                <Text
-                  style={{
-                    color: '#fff',
-                    fontSize: '12px',
-                    lineHeight: '1.6',
-                    wordBreak: 'break-word',
-                  }}
-                >
-                  <Text type="secondary" style={{ color: '#8c8c8c', marginRight: '8px' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
+                  <span
+                    style={{
+                      color: 'var(--text-muted)',
+                      fontSize: '10px',
+                      fontFamily: "'JetBrains Mono', monospace",
+                      flexShrink: 0,
+                    }}
+                  >
                     {dayjs(log.timestamp).format('HH:mm:ss.SSS')}
-                  </Text>
-                  {log.message}
-                </Text>
+                  </span>
+                  <span
+                    style={{
+                      color: 'var(--text-primary)',
+                      fontSize: '12px',
+                      lineHeight: 1.5,
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {log.message}
+                  </span>
+                </div>
                 {/* 显示元数据 */}
                 {log.metadata && Object.keys(log.metadata).length > 0 && (
-                  <div style={{ marginTop: '4px', paddingLeft: '8px' }}>
+                  <div style={{ marginTop: '6px', paddingLeft: '4px' }}>
                     {Object.entries(log.metadata).map(([key, value]) => (
-                      <Text
+                      <span
                         key={key}
                         style={{
-                          color: '#595959',
-                          fontSize: '11px',
-                          display: 'block',
+                          display: 'inline-block',
+                          marginRight: '12px',
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          background: 'var(--bg-surface)',
+                          color: 'var(--text-secondary)',
+                          fontSize: '10px',
                         }}
                       >
-                        {key}: {JSON.stringify(value)}
-                      </Text>
+                        <span style={{ color: 'var(--text-tertiary)' }}>{key}:</span> {JSON.stringify(value)}
+                      </span>
                     ))}
                   </div>
                 )}
@@ -186,26 +215,27 @@ const LogViewer: React.FC<LogViewerProps> = ({
         {isStreaming && (
           <div
             style={{
-              padding: '6px 8px',
+              padding: '8px 12px',
               display: 'flex',
-              gap: '8px',
+              gap: '10px',
               alignItems: 'center',
             }}
           >
-            <span style={{ color: '#1890ff' }}>
+            <span style={{ color: 'var(--color-primary)' }}>
               <SyncOutlined spin />
             </span>
-            <Text style={{ color: '#8c8c8c', fontSize: '12px' }}>
+            <span style={{ color: 'var(--text-tertiary)', fontSize: '12px' }}>
               正在执行...
-            </Text>
+            </span>
             <span
               style={{
                 display: 'inline-block',
-                width: '8px',
+                width: '2px',
                 height: '14px',
-                background: '#52c41a',
-                animation: 'blink 1s infinite',
+                background: 'var(--color-primary)',
+                animation: 'cursorBlink 1s step-end infinite',
                 marginLeft: '4px',
+                borderRadius: '1px',
               }}
             />
           </div>
@@ -213,18 +243,25 @@ const LogViewer: React.FC<LogViewerProps> = ({
 
         {/* 执行指标 */}
         {renderMetrics()}
-
-        {/* 自动滚动锚点 */}
-        <div ref={endRef} />
       </Space>
 
       <style>{`
-        @keyframes blink {
-          0%, 49% {
+        @keyframes cursorBlink {
+          0%, 50% {
             opacity: 1;
           }
-          50%, 100% {
+          51%, 100% {
             opacity: 0;
+          }
+        }
+        @keyframes logFadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(4px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
           }
         }
       `}</style>
